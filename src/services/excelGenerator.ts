@@ -215,24 +215,28 @@ function solidFill(hex: string): ExcelJS.Fill {
 
 interface LessonSummaryLayout {
   wordCount: number
-  wordsStartCol: number
-  wordsEndCol: number
+  wordsCol: number
   sentenceCol: number
   totalCols: number
 }
 
 function getLessonSummaryLayout(style: LessonSummaryStyleConfig): LessonSummaryLayout {
-  const wordCount = style.wordCount
-  const wordsStartCol = 7
-  const wordsEndCol = wordsStartCol + wordCount - 1
-  const sentenceCol = wordsEndCol + 1
+  const wordsCol = 7
+  const sentenceCol = 8
   return {
-    wordCount,
-    wordsStartCol,
-    wordsEndCol,
+    wordCount: style.wordCount,
+    wordsCol,
     sentenceCol,
     totalCols: sentenceCol,
   }
+}
+
+function formatWordsCell(words: string[] | undefined, wordCount: number): string {
+  return (words ?? [])
+    .slice(0, wordCount)
+    .map((w) => w.trim())
+    .filter((w) => w.length > 0)
+    .join(' | ')
 }
 
 async function generateLessonSummaryTable(workbook: ExcelJS.Workbook, opts: GenerateOptions) {
@@ -283,14 +287,11 @@ async function generateLessonSummaryTable(workbook: ExcelJS.Workbook, opts: Gene
       cell.alignment = { horizontal: 'center' }
       setCellBorder(cell)
     })
-    const wordsHeaderCell = headerRow.getCell(layout.wordsStartCol)
+    const wordsHeaderCell = headerRow.getCell(layout.wordsCol)
     wordsHeaderCell.value = '组词'
     wordsHeaderCell.font = baseFont(style, { bold: true, size: style.words.fontSize })
     wordsHeaderCell.alignment = { horizontal: 'center' }
     setCellBorder(wordsHeaderCell)
-    if (layout.wordCount > 1) {
-      sheet.mergeCells(row, layout.wordsStartCol, row, layout.wordsEndCol)
-    }
     const sentenceHeaderCell = headerRow.getCell(layout.sentenceCol)
     sentenceHeaderCell.value = '造句'
     sentenceHeaderCell.font = baseFont(style, { bold: true, size: style.words.fontSize })
@@ -335,9 +336,7 @@ async function generateLessonSummaryTable(workbook: ExcelJS.Workbook, opts: Gene
   sheet.getColumn(4).width = 6
   sheet.getColumn(5).width = 8
   sheet.getColumn(6).width = 10
-  for (let col = layout.wordsStartCol; col <= layout.wordsEndCol; col++) {
-    sheet.getColumn(col).width = 12
-  }
+  sheet.getColumn(layout.wordsCol).width = 36
   sheet.getColumn(layout.sentenceCol).width = 40
 }
 
@@ -378,14 +377,12 @@ function addCharSection(
       row.getCell(col).font = baseFont(style, { size: style.words.fontSize })
     }
 
-    for (let w = 0; w < layout.wordCount; w++) {
-      const col = layout.wordsStartCol + w
-      row.getCell(col).value = char.words?.[w] ?? ''
-      row.getCell(col).font = baseFont(style, {
-        size: style.words.fontSize,
-        color: { argb: hexToArgb(style.words.color) },
-      })
-    }
+    const wordsCell = row.getCell(layout.wordsCol)
+    wordsCell.value = formatWordsCell(char.words, layout.wordCount)
+    wordsCell.font = baseFont(style, {
+      size: style.words.fontSize,
+      color: { argb: hexToArgb(style.words.color) },
+    })
 
     const sentenceCell = row.getCell(layout.sentenceCol)
     const sentence = char.sentences?.[0] ?? ''
@@ -405,7 +402,10 @@ function addCharSection(
     }
 
     row.eachCell((cell) => {
-      cell.alignment = { ...cell.alignment, horizontal: 'center', vertical: 'middle' }
+      const col = Number(cell.col)
+      const horizontal =
+        col === layout.wordsCol || col === layout.sentenceCol ? 'left' : 'center'
+      cell.alignment = { ...cell.alignment, horizontal, vertical: 'middle' }
       setCellBorder(cell)
     })
   }

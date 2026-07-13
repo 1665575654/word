@@ -58,6 +58,16 @@ function getPhoneticOrder(py: string): string {
   return first.toUpperCase()
 }
 
+/** 组词/拓展词组规则：最后一项须为含目标字的四字成语，无则四字词语 */
+function buildWordGroupRule(wordCount: number, targetLabel: '生字' | '词语' = '生字'): string {
+  if (wordCount <= 0) return ''
+  const target = `该${targetLabel}`
+  if (wordCount === 1) {
+    return `共1个，须为包含${target}的四字成语；若无合适成语则组包含${target}的四字词语`
+  }
+  return `共${wordCount}个：前${wordCount - 1}个为普通词语（2-3字为宜）；最后1个须为包含${target}的四字成语，若无合适成语则组包含${target}的四字词语`
+}
+
 interface ExpandCharResult {
   items: Array<{
     char: string
@@ -133,6 +143,8 @@ export async function expandCharacters(
       .join('\n')
 
     const fields = config.charFields.filter((f) => f !== 'phoneticOrder')
+    const includeWords = fields.includes('words')
+    const wordGroupRule = includeWords ? buildWordGroupRule(config.wordCount) : ''
     const prompt = `你是${grade}语文教师。为以下生字生成教学资料，严格返回 JSON：
 {
   "items": [{
@@ -140,13 +152,14 @@ export async function expandCharacters(
     "pinyin": "带声调拼音",
     "radical": "部首",
     "structure": "结构（左右/上下/独体/半包围/全包围等）",
-    "words": ["组词${config.wordCount}个"],
+    "words": ["组词${config.wordCount}个${wordGroupRule ? `，${wordGroupRule}` : ''}"],
     "sentences": ["造句${config.sentenceCount}个，适合${grade}学生，每句10-15字，语句优美"],
-    "readings": [{"pinyin": "读音", "words": ["组词"], "sentences": ["造句，每句10-15字，语句优美"]}]
+    "readings": [{"pinyin": "读音", "words": ["组词${includeWords ? `，${wordGroupRule}` : ''}"], "sentences": ["造句，每句10-15字，语句优美"]}]
   }]
 }
 生字（items 数组顺序须与下列序号一致，共 ${batch.length} 条，不可遗漏）：
 ${charList}
+${includeWords ? `组词规则：${wordGroupRule}。多音字各读音的组词均须遵守此规则。` : ''}
 多音字用 readings 数组分别给出。造句须含目标字，每句10-15字，语句优美流畅。只返回 JSON。`
 
     const expanded = await chatJSON<ExpandCharResult>(prompt, undefined, { api: 'expand' })
@@ -205,17 +218,18 @@ export async function expandVocabulary(
       .map((w, idx) => `${idx + 1}. ${w.word}（课次 ${normalizeLessonNo(w.lessonNo)}）`)
       .join('\n')
 
+    const wordGroupRule = buildWordGroupRule(config.vocabWordCount, '词语')
     const prompt = `你是${grade}语文教师。为以下词语生成拓展资料，严格返回 JSON：
 {
   "items": [{
     "word": "词语",
-    "relatedWords": ["拓展组词${config.vocabWordCount}个"],
+    "relatedWords": ["拓展组词${config.vocabWordCount}个，${wordGroupRule}"],
     "sentences": ["造句${config.vocabSentenceCount}个，适合${grade}学生，每句10-15字，语句优美"]
   }]
 }
 词语（items 数组顺序须与下列序号一致，共 ${batch.length} 条，不可遗漏）：
 ${wordList}
-造句须含目标词语，每句10-15字，语句优美流畅。只返回 JSON。`
+拓展组词规则：${wordGroupRule}。造句须含目标词语，每句10-15字，语句优美流畅。只返回 JSON。`
 
     const expanded = await chatJSON<ExpandVocabResult>(prompt, undefined, { api: 'expand' })
 

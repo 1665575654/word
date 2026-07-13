@@ -2,7 +2,7 @@
 export interface LessonSummaryStyleConfig {
   /** 整表字体 */
   fontFamily: string
-  /** 组词列数（默认 3） */
+  /** 组词数量（默认 3，导出时以竖线分隔合并为一列） */
   wordCount: number
   lessonTitle: {
     fontSize: number

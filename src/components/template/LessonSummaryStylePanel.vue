@@ -84,7 +84,7 @@ defineExpose({ save, reset, reloadFromStore })
           <a-typography-text strong>组词</a-typography-text>
         </a-col>
         <a-col :xs="24" :sm="8">
-          <a-form-item label="组词列数">
+          <a-form-item label="组词数量">
             <a-input-number v-model:value="form.wordCount" :min="1" :max="5" style="width: 100%" />
           </a-form-item>
         </a-col>
