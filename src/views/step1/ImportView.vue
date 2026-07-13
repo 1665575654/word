@@ -8,6 +8,7 @@ import {
   ImportOutlined,
   ArrowRightOutlined,
   ClearOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons-vue'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useSettingsStore } from '@/stores/settings'
@@ -62,6 +63,9 @@ import type {
 } from '@/types'
 
 type UploadType = 'catalog' | 'writing' | 'reading' | 'vocabulary'
+type EditMode = 'table' | 'json' | 'expand' | 'expandedJson'
+
+const EDIT_MODES: EditMode[] = ['table', 'json', 'expand', 'expandedJson']
 
 const DATA_TYPES: {
   value: UploadType
@@ -205,7 +209,7 @@ const workspaceStore = useWorkspaceStore()
 const settingsStore = useSettingsStore()
 
 const uploadType = ref<UploadType>('catalog')
-const editMode = ref<'table' | 'json' | 'expand' | 'expandedJson'>('table')
+const editMode = ref<EditMode>('table')
 const parsing = ref(false)
 const jsonText = ref('')
 const expandedJsonText = ref('')
@@ -283,7 +287,79 @@ watch(
   { immediate: true, deep: true }
 )
 
-watch(uploadType, () => {
+function isUploadType(value: unknown): value is UploadType {
+  return value === 'catalog' || value === 'writing' || value === 'reading' || value === 'vocabulary'
+}
+
+function isEditMode(value: unknown): value is EditMode {
+  return typeof value === 'string' && EDIT_MODES.includes(value as EditMode)
+}
+
+function applyRouteViewState() {
+  const typeQuery = route.query.type
+  const tabQuery = route.query.tab
+
+  if (isUploadType(typeQuery)) {
+    uploadType.value = typeQuery
+  }
+
+  if (isEditMode(tabQuery)) {
+    if (tabQuery === 'expand' || tabQuery === 'expandedJson') {
+      if (uploadType.value !== 'catalog') {
+        editMode.value = tabQuery
+      } else if (isUploadType(typeQuery) && typeQuery !== 'catalog') {
+        editMode.value = tabQuery
+      } else {
+        editMode.value = 'table'
+      }
+    } else {
+      editMode.value = tabQuery
+    }
+  }
+}
+
+function goToExpandTab() {
+  if (uploadType.value === 'catalog') {
+    message.info('请先选择写字表、识字表或词语表')
+    return
+  }
+  editMode.value = 'expand'
+}
+
+function syncRouteViewState() {
+  const nextQuery = { ...route.query }
+  if (uploadType.value === 'catalog') {
+    delete nextQuery.type
+  } else {
+    nextQuery.type = uploadType.value
+  }
+  if (editMode.value === 'table') {
+    delete nextQuery.tab
+  } else {
+    nextQuery.tab = editMode.value
+  }
+  const changed =
+    nextQuery.type !== route.query.type || nextQuery.tab !== route.query.tab
+  if (changed) {
+    router.replace({ query: nextQuery })
+  }
+}
+
+applyRouteViewState()
+
+watch(
+  () => [route.query.type, route.query.tab],
+  () => applyRouteViewState()
+)
+
+watch([uploadType, editMode], () => {
+  syncRouteViewState()
+})
+
+watch(uploadType, (type) => {
+  if (type === 'catalog' && (editMode.value === 'expand' || editMode.value === 'expandedJson')) {
+    editMode.value = 'table'
+  }
   syncJsonText()
   syncExpandedJsonText()
 })
@@ -661,6 +737,13 @@ function goNext() {
                   <ImportOutlined /> 上传 JSON
                 </a-button>
               </a-upload>
+              <a-button
+                v-if="uploadType !== 'catalog'"
+                type="primary"
+                @click="goToExpandTab"
+              >
+                <ThunderboltOutlined /> AI 拓展
+              </a-button>
             </a-space>
           </div>
           <EditableLessonTable

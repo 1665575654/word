@@ -51,12 +51,21 @@ const groups = computed<LessonGroup[]>(() => {
 watch(
   groups,
   (rows) => {
+    const validKeys = new Set(rows.map((r) => String(r.lessonNo)))
+    activeKeys.value = activeKeys.value
+      .map(String)
+      .filter((k) => validKeys.has(k))
     if (activeKeys.value.length === 0 && rows.length > 0) {
       activeKeys.value = rows.slice(0, 3).map((r) => String(r.lessonNo))
     }
   },
   { immediate: true }
 )
+
+function isPanelActive(lessonNo: string): boolean {
+  const key = String(lessonNo)
+  return activeKeys.value.map(String).includes(key)
+}
 
 function panelHeader(row: { lessonNo: string; title?: string }) {
   const title = row.title?.trim() || ''
@@ -125,37 +134,41 @@ function itemCount(row: LessonGroup): number {
   <div class="expanded-lesson-group-panel">
     <a-empty v-if="groups.length === 0" description="暂无数据，请先上传识别" />
 
-    <a-collapse v-else v-model:activeKey="activeKeys" :bordered="false" class="lesson-collapse">
+    <a-collapse v-else v-model:activeKey="activeKeys" :bordered="false" :destroy-inactive-panel="true" class="lesson-collapse">
       <a-collapse-panel
         v-for="row in groups"
         :key="String(row.lessonNo)"
         :header="panelHeader(row)"
       >
-        <div class="meta-row">
-          <span class="meta-label">索引</span>
-          <span class="meta-readonly">{{ row.index }}</span>
-          <span class="meta-label">课次</span>
-          <span class="meta-readonly">{{ row.lessonNo }}</span>
-        </div>
+        <template v-if="isPanelActive(row.lessonNo)">
+          <div class="meta-row">
+            <span class="meta-label">索引</span>
+            <span class="meta-readonly">{{ row.index }}</span>
+            <span class="meta-label">课次</span>
+            <span class="meta-readonly">{{ row.lessonNo }}</span>
+          </div>
 
-        <div v-if="itemCount(row) === 0" class="empty-lesson-hint">
-          本课暂无{{ tableType === 'vocabulary' ? '词语' : '生字' }}
-        </div>
+          <div v-if="itemCount(row) === 0" class="empty-lesson-hint">
+            本课暂无{{ tableType === 'vocabulary' ? '词语' : '生字' }}
+          </div>
 
-        <EditableCharTable
-          v-else-if="tableType === 'writing' || tableType === 'reading'"
-          :data="charsForLesson(row.lessonNo)"
-          expanded
-          hide-lesson-no
-          @update="(items) => onCharsUpdate(row.lessonNo, items)"
-        />
-        <EditableVocabTable
-          v-else
-          :data="wordsForLesson(row.lessonNo)"
-          expanded
-          hide-lesson-no
-          @update="(items) => onVocabUpdate(row.lessonNo, items)"
-        />
+          <EditableCharTable
+            v-else-if="tableType === 'writing' || tableType === 'reading'"
+            :key="`char-${row.lessonNo}`"
+            :data="charsForLesson(row.lessonNo)"
+            expanded
+            hide-lesson-no
+            @update="(items) => onCharsUpdate(row.lessonNo, items)"
+          />
+          <EditableVocabTable
+            v-else
+            :key="`vocab-${row.lessonNo}`"
+            :data="wordsForLesson(row.lessonNo)"
+            expanded
+            hide-lesson-no
+            @update="(items) => onVocabUpdate(row.lessonNo, items)"
+          />
+        </template>
       </a-collapse-panel>
     </a-collapse>
   </div>

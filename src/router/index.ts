@@ -43,7 +43,13 @@ const router = createRouter({
         },
         {
           path: 'expand',
-          redirect: (to) => `/workspace/${to.params.id}/import`,
+          redirect: (to) => ({
+            path: `/workspace/${to.params.id}/import`,
+            query: {
+              tab: 'expand',
+              type: typeof to.query.type === 'string' ? to.query.type : 'reading',
+            },
+          }),
         },
         {
           path: 'export',

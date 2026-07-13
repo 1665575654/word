@@ -5,7 +5,7 @@ import { DEFAULT_LESSON_SUMMARY_STYLE } from '@/types/templateStyles'
 import { hexToArgb } from '@/utils/colorUtils'
 import { isLessonSlotChar, isLessonSlotWord } from '@/services/dataMerger'
 import { formatLessonOrdinalLabel, normalizeLessonNo } from '@/services/lessonNoUtils'
-import { setHighlightedCell, setCellBorder } from '@/services/richTextBuilder'
+import { setHighlightedCell, setSentenceHighlightedCell, setCellBorder } from '@/services/richTextBuilder'
 
 interface GenerateOptions {
   templateId: string
@@ -346,10 +346,11 @@ function addCharSection(
     const sentenceCell = row.getCell(9)
     const sentence = char.sentences?.[0] ?? ''
     if (sentence) {
-      setHighlightedCell(
+      setSentenceHighlightedCell(
         sentenceCell,
         sentence,
         char.char,
+        char.words,
         hexToArgb(style.words.color),
         hexToArgb(style.sentence.highlightColor),
         style.sentence.fontSize,

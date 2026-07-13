@@ -452,6 +452,7 @@ export async function chatJSON<T>(
         messages: [{ role: 'user', content: prompt }],
         response_format: { type: 'json_object' },
         temperature: 0.3,
+        max_tokens: options?.api === 'expand' ? 8192 : undefined,
       },
       credentials,
       {

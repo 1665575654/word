@@ -2,7 +2,12 @@
 import { ref, watch, computed } from 'vue'
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import type { CharacterItem } from '@/types'
-import { isValidLessonNo } from '@/services/lessonNoUtils'
+import { isValidLessonNo, normalizeLessonNo } from '@/services/lessonNoUtils'
+import {
+  formatStringArray,
+  normalizeStringArray,
+  parseStringArray,
+} from '@/utils/stringArray'
 
 const props = defineProps<{
   data: CharacterItem[]
@@ -16,12 +21,34 @@ const emit = defineEmits<{
 
 const rows = ref<CharacterItem[]>([])
 
+function normalizeChar(item: CharacterItem): CharacterItem {
+  return {
+    ...item,
+    words: normalizeStringArray(item.words),
+    sentences: normalizeStringArray(item.sentences),
+    readings: item.readings?.map((r) => ({
+      ...r,
+      words: normalizeStringArray(r.words),
+      sentences: normalizeStringArray(r.sentences),
+    })),
+  }
+}
+
+function dataFingerprint(data: CharacterItem[]): string {
+  return data
+    .map(
+      (c) =>
+        `${normalizeLessonNo(c.lessonNo)}-${c.char}-${c.expanded ? 1 : 0}-${c.pinyin ?? ''}-${c.radical ?? ''}-${normalizeStringArray(c.words).join('|')}`
+    )
+    .join('\n')
+}
+
 watch(
-  () => props.data,
-  (val) => {
-    rows.value = val.map((c) => ({ ...c }))
+  () => dataFingerprint(props.data),
+  () => {
+    rows.value = props.data.map(normalizeChar)
   },
-  { immediate: true, deep: true }
+  { immediate: true }
 )
 
 function emitUpdate() {
@@ -45,12 +72,12 @@ function onFieldChange() {
   emitUpdate()
 }
 
-function formatArray(val?: string[]) {
-  return val?.join('、') ?? ''
+function formatArray(val: unknown) {
+  return formatStringArray(val)
 }
 
 function parseArray(text: string): string[] {
-  return text.split(/[、,，]+/).map((s) => s.trim()).filter(Boolean)
+  return parseStringArray(text)
 }
 
 const columns = computed(() => {

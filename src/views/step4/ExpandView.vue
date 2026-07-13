@@ -11,7 +11,7 @@ import {
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useSettingsStore } from '@/stores/settings'
 import { exportJwData, importPartialJwDataFromFile, JSON_FILE_ACCEPT } from '@/services/fileIO'
-import { expandCharacters, expandVocabulary } from '@/services/aiExpander'
+import { expandCharacters, expandVocabulary, EXPAND_BATCH_SIZE, mergeCharPartial, mergeVocabPartial } from '@/services/aiExpander'
 import { getGradeLabel } from '@/utils/exportName'
 import ExpandedLessonResults from '@/components/table/ExpandedLessonResults.vue'
 import type { CharacterItem, WordItem, CharExpandConfig, VocabExpandConfig } from '@/types'
@@ -23,8 +23,24 @@ const settingsStore = useSettingsStore()
 const expanding = ref(false)
 const progress = ref(0)
 const progressText = ref('')
+const progressDetail = ref('')
 
 const workspace = computed(() => workspaceStore.current)
+
+async function saveCharPartial(
+  field: 'writingChars' | 'readingChars',
+  partial: CharacterItem[]
+) {
+  if (!workspace.value) return
+  const merged = mergeCharPartial(workspace.value[field], partial)
+  await workspaceStore.update({ [field]: merged })
+}
+
+async function saveVocabPartial(partial: WordItem[]) {
+  if (!workspace.value) return
+  const merged = mergeVocabPartial(workspace.value.vocabulary, partial)
+  await workspaceStore.update({ vocabulary: merged })
+}
 
 const charFieldOptions = [
   { label: '读音', value: 'pinyin' },
@@ -70,6 +86,12 @@ async function handleExpand() {
 
   expanding.value = true
   progress.value = 0
+  progressDetail.value = ''
+  const initialExpandedCounts = {
+    writing: workspace.value.writingChars.filter((c) => c.expanded).length,
+    reading: workspace.value.readingChars.filter((c) => c.expanded).length,
+    vocabulary: workspace.value.vocabulary.filter((v) => v.expanded).length,
+  }
   try {
     const grade = getGradeLabel(workspace.value.meta.grade) || '小学'
     const tasks: Array<{ label: string; total: number; run: () => Promise<void> }> = []
@@ -77,24 +99,22 @@ async function handleExpand() {
     if (config.writing.enabled) {
       const unexpanded = workspace.value.writingChars.filter((c) => !c.expanded)
       if (unexpanded.length > 0) {
+        const totalBatches = Math.ceil(unexpanded.length / EXPAND_BATCH_SIZE)
         tasks.push({
           label: '写字表',
           total: unexpanded.length,
           run: async () => {
             progressText.value = '正在拓展写字表...'
-            const expanded = await expandCharacters(
-              unexpanded,
-              config.writing,
-              grade,
-              (done, total) => {
+            await expandCharacters(unexpanded, config.writing, grade, {
+              onProgress: (done, total) => {
+                const batchNo = Math.ceil(done / EXPAND_BATCH_SIZE) || 1
+                progressDetail.value = `写字表 第 ${batchNo}/${totalBatches} 批，${done}/${total} 条`
                 progress.value = Math.round((done / total) * (100 / tasks.length))
-              }
-            )
-            const map = new Map(expanded.map((c) => [`${c.lessonNo}-${c.char}`, c]))
-            const writingChars = workspace.value!.writingChars.map(
-              (c) => map.get(`${c.lessonNo}-${c.char}`) ?? c
-            )
-            await workspaceStore.update({ writingChars })
+              },
+              onBatchComplete: async (partial) => {
+                await saveCharPartial('writingChars', partial)
+              },
+            })
           },
         })
       }
@@ -103,27 +123,25 @@ async function handleExpand() {
     if (config.reading.enabled) {
       const unexpanded = workspace.value.readingChars.filter((c) => !c.expanded)
       if (unexpanded.length > 0) {
+        const totalBatches = Math.ceil(unexpanded.length / EXPAND_BATCH_SIZE)
         tasks.push({
           label: '识字表',
           total: unexpanded.length,
           run: async () => {
             progressText.value = '正在拓展识字表...'
-            const expanded = await expandCharacters(
-              unexpanded,
-              config.reading,
-              grade,
-              (done, total) => {
-                const base = tasks.findIndex((t) => t.label === '识字表') / tasks.length
+            const taskIndex = tasks.findIndex((t) => t.label === '识字表')
+            await expandCharacters(unexpanded, config.reading, grade, {
+              onProgress: (done, total) => {
+                const batchNo = Math.ceil(done / EXPAND_BATCH_SIZE) || 1
+                progressDetail.value = `识字表 第 ${batchNo}/${totalBatches} 批，${done}/${total} 条`
                 progress.value = Math.round(
-                  base * 100 + (done / total) * (100 / tasks.length)
+                  (taskIndex / tasks.length) * 100 + (done / total) * (100 / tasks.length)
                 )
-              }
-            )
-            const map = new Map(expanded.map((c) => [`${c.lessonNo}-${c.char}`, c]))
-            const readingChars = workspace.value!.readingChars.map(
-              (c) => map.get(`${c.lessonNo}-${c.char}`) ?? c
-            )
-            await workspaceStore.update({ readingChars })
+              },
+              onBatchComplete: async (partial) => {
+                await saveCharPartial('readingChars', partial)
+              },
+            })
           },
         })
       }
@@ -132,27 +150,25 @@ async function handleExpand() {
     if (config.vocabulary.enabled) {
       const unexpanded = workspace.value.vocabulary.filter((v) => !v.expanded)
       if (unexpanded.length > 0) {
+        const totalBatches = Math.ceil(unexpanded.length / EXPAND_BATCH_SIZE)
         tasks.push({
           label: '词语表',
           total: unexpanded.length,
           run: async () => {
             progressText.value = '正在拓展词语表...'
-            const expandedVocab = await expandVocabulary(
-              unexpanded,
-              config.vocabulary,
-              grade,
-              (done, total) => {
-                const taskIndex = tasks.findIndex((t) => t.label === '词语表')
+            const taskIndex = tasks.findIndex((t) => t.label === '词语表')
+            await expandVocabulary(unexpanded, config.vocabulary, grade, {
+              onProgress: (done, total) => {
+                const batchNo = Math.ceil(done / EXPAND_BATCH_SIZE) || 1
+                progressDetail.value = `词语表 第 ${batchNo}/${totalBatches} 批，${done}/${total} 条`
                 progress.value = Math.round(
                   (taskIndex / tasks.length) * 100 + (done / total) * (100 / tasks.length)
                 )
-              }
-            )
-            const map = new Map(expandedVocab.map((v) => [`${v.lessonNo}-${v.word}`, v]))
-            const vocabulary = workspace.value!.vocabulary.map(
-              (v) => map.get(`${v.lessonNo}-${v.word}`) ?? v
-            )
-            await workspaceStore.update({ vocabulary })
+              },
+              onBatchComplete: async (partial) => {
+                await saveVocabPartial(partial)
+              },
+            })
           },
         })
       }
@@ -170,12 +186,30 @@ async function handleExpand() {
 
     await workspaceStore.update({ stage: 'expanded' })
     progress.value = 100
+    progressDetail.value = '拓展完成'
     message.success('拓展完成')
   } catch (e) {
-    message.error(e instanceof Error ? e.message : '拓展失败')
+    const ws = workspace.value
+    if (ws) {
+      const newlyExpanded =
+        ws.writingChars.filter((c) => c.expanded).length -
+        initialExpandedCounts.writing +
+        (ws.readingChars.filter((c) => c.expanded).length - initialExpandedCounts.reading) +
+        (ws.vocabulary.filter((v) => v.expanded).length - initialExpandedCounts.vocabulary)
+      const errMsg = e instanceof Error ? e.message : '拓展失败'
+      if (newlyExpanded > 0) {
+        await workspaceStore.update({ stage: 'expanded' })
+        message.warning(`已保存 ${newlyExpanded} 条拓展结果，后续批次失败：${errMsg}`)
+      } else {
+        message.error(errMsg)
+      }
+    } else {
+      message.error(e instanceof Error ? e.message : '拓展失败')
+    }
   } finally {
     expanding.value = false
     progressText.value = ''
+    progressDetail.value = ''
   }
 }
 
@@ -395,7 +429,9 @@ async function updateVocabConfig(patch: Partial<VocabExpandConfig>) {
 
       <div v-if="expanding" style="margin-top: 16px">
         <a-progress :percent="progress" />
-        <p style="color: #666; margin-top: 4px">{{ progressText }}</p>
+        <p style="color: #666; margin-top: 4px">
+          {{ progressText }}<template v-if="progressDetail"> — {{ progressDetail }}</template>
+        </p>
       </div>
     </div>
 

@@ -17,7 +17,7 @@ export interface LessonSummaryStyleConfig {
   }
   sentence: {
     fontSize: number
-    /** 造句中目标字高亮颜色 */
+    /** 造句中组词目标色（句中无组词时仅标目标字） */
     highlightColor: string
   }
   fill: {

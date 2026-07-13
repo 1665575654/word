@@ -23,12 +23,21 @@ const lessonRows = computed(() => buildLessonMergeRows(props.workspace))
 watch(
   lessonRows,
   (rows) => {
+    const validKeys = new Set(rows.map((r) => String(r.lessonNo)))
+    activeKeys.value = activeKeys.value
+      .map(String)
+      .filter((k) => validKeys.has(k))
     if (activeKeys.value.length === 0 && rows.length > 0) {
       activeKeys.value = rows.slice(0, 3).map((r) => String(r.lessonNo))
     }
   },
   { immediate: true }
 )
+
+function isPanelActive(lessonNo: string): boolean {
+  const key = String(lessonNo)
+  return activeKeys.value.map(String).includes(key)
+}
 
 function filterCharsByLesson(chars: CharacterItem[], lessonNo: string): CharacterItem[] {
   const no = normalizeLessonNo(lessonNo)
@@ -79,47 +88,52 @@ function onVocabUpdate(lessonNo: string, items: WordItem[]) {
   <div class="expanded-lesson-results">
     <a-empty v-if="lessonRows.length === 0" description="暂无课次数据" />
 
-    <a-collapse v-else v-model:activeKey="activeKeys" :bordered="false" class="lesson-collapse">
+    <a-collapse v-else v-model:activeKey="activeKeys" :bordered="false" :destroy-inactive-panel="true" class="lesson-collapse">
       <a-collapse-panel
         v-for="row in lessonRows"
         :key="String(row.lessonNo)"
         :header="panelHeader(row)"
       >
-        <div class="table-section">
-          <div class="table-section-title">写字表</div>
-          <EditableCharTable
-            v-if="filterCharsByLesson(workspace.writingChars, row.lessonNo).length > 0"
-            :data="filterCharsByLesson(workspace.writingChars, row.lessonNo)"
-            expanded
-            hide-lesson-no
-            @update="(items) => onWritingUpdate(row.lessonNo, items)"
-          />
-          <div v-else class="empty-table-hint">本课暂无写字表生字</div>
-        </div>
+        <template v-if="isPanelActive(row.lessonNo)">
+          <div class="table-section">
+            <div class="table-section-title">写字表</div>
+            <EditableCharTable
+              v-if="filterCharsByLesson(workspace.writingChars, row.lessonNo).length > 0"
+              :key="`writing-${row.lessonNo}`"
+              :data="filterCharsByLesson(workspace.writingChars, row.lessonNo)"
+              expanded
+              hide-lesson-no
+              @update="(items) => onWritingUpdate(row.lessonNo, items)"
+            />
+            <div v-else class="empty-table-hint">本课暂无写字表生字</div>
+          </div>
 
-        <div class="table-section">
-          <div class="table-section-title">识字表</div>
-          <EditableCharTable
-            v-if="filterCharsByLesson(workspace.readingChars, row.lessonNo).length > 0"
-            :data="filterCharsByLesson(workspace.readingChars, row.lessonNo)"
-            expanded
-            hide-lesson-no
-            @update="(items) => onReadingUpdate(row.lessonNo, items)"
-          />
-          <div v-else class="empty-table-hint">本课暂无识字表生字</div>
-        </div>
+          <div class="table-section">
+            <div class="table-section-title">识字表</div>
+            <EditableCharTable
+              v-if="filterCharsByLesson(workspace.readingChars, row.lessonNo).length > 0"
+              :key="`reading-${row.lessonNo}`"
+              :data="filterCharsByLesson(workspace.readingChars, row.lessonNo)"
+              expanded
+              hide-lesson-no
+              @update="(items) => onReadingUpdate(row.lessonNo, items)"
+            />
+            <div v-else class="empty-table-hint">本课暂无识字表生字</div>
+          </div>
 
-        <div class="table-section">
-          <div class="table-section-title">词语表</div>
-          <EditableVocabTable
-            v-if="filterWordsByLesson(workspace.vocabulary, row.lessonNo).length > 0"
-            :data="filterWordsByLesson(workspace.vocabulary, row.lessonNo)"
-            expanded
-            hide-lesson-no
-            @update="(items) => onVocabUpdate(row.lessonNo, items)"
-          />
-          <div v-else class="empty-table-hint">本课暂无词语</div>
-        </div>
+          <div class="table-section">
+            <div class="table-section-title">词语表</div>
+            <EditableVocabTable
+              v-if="filterWordsByLesson(workspace.vocabulary, row.lessonNo).length > 0"
+              :key="`vocab-${row.lessonNo}`"
+              :data="filterWordsByLesson(workspace.vocabulary, row.lessonNo)"
+              expanded
+              hide-lesson-no
+              @update="(items) => onVocabUpdate(row.lessonNo, items)"
+            />
+            <div v-else class="empty-table-hint">本课暂无词语</div>
+          </div>
+        </template>
       </a-collapse-panel>
     </a-collapse>
   </div>
