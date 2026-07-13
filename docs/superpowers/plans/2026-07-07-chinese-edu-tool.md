@@ -96,7 +96,6 @@
 ## 运行方式
 
 ```bash
-cd e:\jing
 npm install
 npm run dev      # 开发服务器 http://localhost:5173
 npm run build    # 生产构建

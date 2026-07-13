@@ -1,12 +1,36 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
-import { UploadOutlined, DeleteOutlined } from '@ant-design/icons-vue'
+import { UploadOutlined, DeleteOutlined, SettingOutlined } from '@ant-design/icons-vue'
 import { BUILTIN_TEMPLATES } from '@/templates/builtin'
+import LessonSummaryStylePanel from '@/components/template/LessonSummaryStylePanel.vue'
 import * as storage from '@/utils/storage'
 import type { CustomTemplate } from '@/types'
 
 const customTemplates = ref<CustomTemplate[]>([])
+const styleModalOpen = ref(false)
+const stylePanelRef = ref<InstanceType<typeof LessonSummaryStylePanel> | null>(null)
+
+async function openStyleModal() {
+  styleModalOpen.value = true
+  await nextTick()
+  stylePanelRef.value?.reloadFromStore()
+}
+
+function handleStyleSave() {
+  stylePanelRef.value?.save()
+  styleModalOpen.value = false
+}
+
+function handleStyleReset() {
+  stylePanelRef.value?.reset()
+}
+
+async function handleStyleCancel() {
+  styleModalOpen.value = false
+  await nextTick()
+  stylePanelRef.value?.reloadFromStore()
+}
 
 onMounted(async () => {
   customTemplates.value = await storage.getAllCustomTemplates()
@@ -65,10 +89,35 @@ async function handleDelete(id: string) {
           <a-card>
             <a-typography-title :level="5">{{ tpl.name }}</a-typography-title>
             <p style="color: #666">{{ tpl.description }}</p>
-            <a-tag>{{ tpl.category }}</a-tag>
+            <div class="tpl-card-footer">
+              <a-tag>{{ tpl.category }}</a-tag>
+              <a-button
+                v-if="tpl.id === 'lesson-summary-table'"
+                type="link"
+                size="small"
+                @click="openStyleModal"
+              >
+                <SettingOutlined /> 配置样式
+              </a-button>
+            </div>
           </a-card>
         </a-col>
       </a-row>
+
+      <a-modal
+        v-model:open="styleModalOpen"
+        title="综合课表 - 样式配置"
+        width="720px"
+        :mask-closable="false"
+        @cancel="handleStyleCancel"
+      >
+        <LessonSummaryStylePanel ref="stylePanelRef" />
+        <template #footer>
+          <a-button @click="handleStyleCancel">取消</a-button>
+          <a-button @click="handleStyleReset">恢复默认</a-button>
+          <a-button type="primary" @click="handleStyleSave">保存</a-button>
+        </template>
+      </a-modal>
     </div>
 
     <div class="card-section">
@@ -102,3 +151,12 @@ async function handleDelete(id: string) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.tpl-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+</style>

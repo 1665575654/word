@@ -39,7 +39,7 @@ export default defineConfig({
     },
   },
   server: {
-    host: true,
+    host: '127.0.0.1',
     strictPort: false,
     proxy: {
       '/deepseek': timedProxy('https://api.deepseek.com', (path) => path.replace(/^\/deepseek/, '')),
@@ -65,4 +65,4 @@ export default defineConfig({
     },
   },
 })
-
+

@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { DownloadOutlined } from '@ant-design/icons-vue'
 import { useWorkspaceStore } from '@/stores/workspace'
+import { useTemplateStylesStore } from '@/stores/templateStyles'
 import { BUILTIN_TEMPLATES } from '@/templates/builtin'
 import { generateBuiltinExcel } from '@/services/excelGenerator'
 import * as storage from '@/utils/storage'
@@ -11,6 +12,7 @@ import { buildExportFileName } from '@/utils/exportName'
 import { formatLessonOrdinalLabel } from '@/services/lessonNoUtils'
 
 const workspaceStore = useWorkspaceStore()
+const templateStylesStore = useTemplateStylesStore()
 
 const dataSource = ref<DataSourceType>('writing')
 const selectedLessons = ref<string[]>([])
@@ -48,12 +50,19 @@ async function handleGenerate() {
 
   generating.value = true
   try {
+    const options: Record<string, unknown> = {}
+    if (selectedTemplate.value === 'lesson-summary-table') {
+      options.lessonSummaryStyle = JSON.parse(
+        JSON.stringify(templateStylesStore.state.lessonSummary)
+      )
+    }
+
     const buffer = await generateBuiltinExcel({
       templateId: selectedTemplate.value,
       workspace: workspace.value,
       dataSource: dataSource.value,
       lessonNos: selectedLessons.value,
-      options: {},
+      options,
     })
 
     const tpl = BUILTIN_TEMPLATES.find((t) => t.id === selectedTemplate.value)

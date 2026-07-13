@@ -19,7 +19,7 @@ npm install
 npm run dev
 ```
 
-1. 打开 http://localhost:5173
+1. 打开终端里 Vite 打印的地址（须含 `/word/` 路径）
 2. 进入「设置」页配置 OpenAI API Key
 3. 新建工作区，按步骤操作
 

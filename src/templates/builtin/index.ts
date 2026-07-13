@@ -20,7 +20,7 @@ export const BUILTIN_TEMPLATES: BuiltinTemplateConfig[] = [
   {
     id: 'lesson-summary-table',
     name: '综合课表',
-    description: '写字表+识字表+词语表三合一，含读音/音序/部首/结构/组词/造句，全部课次合并在一个 sheet，标题14号字、内容13号字',
+    description: '写字表+识字表+词语表三合一，含读音/音序/部首/结构/组词/造句，全部课次合并在一个 sheet，可在模板管理中配置字体与颜色',
     category: '三表合并',
     dataSource: ['combined'],
     options: {},

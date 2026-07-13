@@ -1,5 +1,8 @@
 import ExcelJS from 'exceljs'
 import type { Workspace, CharacterItem, WordItem, DataSourceType } from '@/types'
+import type { LessonSummaryStyleConfig } from '@/types/templateStyles'
+import { DEFAULT_LESSON_SUMMARY_STYLE } from '@/types/templateStyles'
+import { hexToArgb } from '@/utils/colorUtils'
 import { isLessonSlotChar, isLessonSlotWord } from '@/services/dataMerger'
 import { formatLessonOrdinalLabel, normalizeLessonNo } from '@/services/lessonNoUtils'
 import { setHighlightedCell, setCellBorder } from '@/services/richTextBuilder'
@@ -191,12 +194,28 @@ async function generateCharWordSentenceBook(workbook: ExcelJS.Workbook, opts: Ge
   }
 }
 
-const LESSON_TITLE_FONT_SIZE = 14
-const LESSON_CONTENT_FONT_SIZE = 13
+function getLessonSummaryStyle(opts: GenerateOptions): LessonSummaryStyleConfig {
+  const raw = opts.options.lessonSummaryStyle
+  if (raw && typeof raw === 'object') {
+    return raw as LessonSummaryStyleConfig
+  }
+  return DEFAULT_LESSON_SUMMARY_STYLE
+}
 
+function baseFont(style: LessonSummaryStyleConfig, extra: Partial<ExcelJS.Font> = {}): Partial<ExcelJS.Font> {
+  return {
+    name: style.fontFamily,
+    ...extra,
+  }
+}
+
+function solidFill(hex: string): ExcelJS.Fill {
+  return { type: 'pattern', pattern: 'solid', fgColor: { argb: hexToArgb(hex) } }
+}
 async function generateLessonSummaryTable(workbook: ExcelJS.Workbook, opts: GenerateOptions) {
+  const style = getLessonSummaryStyle(opts)
   const sheet = workbook.addWorksheet('综合课表')
-  const headers = ['', '生字', '读音', '音序', '部首', '结构', '组词', '组词', '造句']
+  const headers = ['', '生字', '读音', '音序', '部首', '结构', '组词', '造句']
   let row = 1
   let hasContent = false
 
@@ -216,37 +235,46 @@ async function generateLessonSummaryTable(workbook: ExcelJS.Workbook, opts: Gene
     sheet.mergeCells(row, 1, row, 9)
     const titleCell = sheet.getCell(row, 1)
     titleCell.value = title
-    titleCell.font = { size: LESSON_TITLE_FONT_SIZE, bold: true }
+    titleCell.font = baseFont(style, {
+      size: style.lessonTitle.fontSize,
+      bold: style.lessonTitle.bold,
+      color: { argb: hexToArgb(style.lessonTitle.color) },
+    })
+    titleCell.fill = solidFill(style.fill.lessonTitle)
     titleCell.alignment = { horizontal: 'center' }
     row++
 
     const headerRow = sheet.getRow(row)
-    headers.forEach((header, index) => {
-      const cell = headerRow.getCell(index + 1)
-      cell.value = header
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD6E4F0' } }
-      cell.font = { bold: true, size: LESSON_CONTENT_FONT_SIZE }
+    const headerCols = [1, 2, 3, 4, 5, 6, 7, 9]
+    headerCols.forEach((col, index) => {
+      const cell = headerRow.getCell(col)
+      cell.value = headers[index]
+      cell.font = baseFont(style, { bold: true, size: style.words.fontSize })
       cell.alignment = { horizontal: 'center' }
       setCellBorder(cell)
     })
+    sheet.mergeCells(row, 7, row, 8)
     row++
 
     if (writingChars.length > 0) {
-      row = addCharSection(sheet, '写字表', writingChars, row, 'FFD6E4F0', LESSON_CONTENT_FONT_SIZE)
+      row = addCharSection(sheet, '写字表', writingChars, row, style.fill.writingTable, style)
     }
 
     if (readingChars.length > 0) {
-      row = addCharSection(sheet, '识字表', readingChars, row, 'FFFCE4D6', LESSON_CONTENT_FONT_SIZE)
+      row = addCharSection(sheet, '识字表', readingChars, row, style.fill.readingTable, style)
     }
 
     if (vocab.length > 0) {
       const vocabRow = sheet.getRow(row)
       vocabRow.getCell(1).value = '词语表'
-      vocabRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2EFDA' } }
-      vocabRow.getCell(1).font = { size: LESSON_CONTENT_FONT_SIZE }
+      vocabRow.getCell(1).fill = solidFill(style.fill.vocabTable)
+      vocabRow.getCell(1).font = baseFont(style, { size: style.words.fontSize })
       sheet.mergeCells(row, 2, row, 9)
       vocabRow.getCell(2).value = vocab.map((v) => v.word).join('  ')
-      vocabRow.getCell(2).font = { size: LESSON_CONTENT_FONT_SIZE }
+      vocabRow.getCell(2).font = baseFont(style, {
+        size: style.words.fontSize,
+        color: { argb: hexToArgb(style.words.color) },
+      })
       setCellBorder(vocabRow.getCell(1))
       setCellBorder(vocabRow.getCell(2))
       row++
@@ -275,8 +303,8 @@ function addCharSection(
   label: string,
   chars: CharacterItem[],
   startRow: number,
-  bgColor: string,
-  fontSize: number
+  labelFillHex: string,
+  style: LessonSummaryStyleConfig
 ): number {
   for (let i = 0; i < chars.length; i++) {
     const char = chars[i]
@@ -284,8 +312,8 @@ function addCharSection(
 
     if (i === 0) {
       row.getCell(1).value = label
-      row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } }
-      row.getCell(1).font = { size: fontSize }
+      row.getCell(1).fill = solidFill(labelFillHex)
+      row.getCell(1).font = baseFont(style, { size: style.words.fontSize })
       row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' }
       if (chars.length > 1) {
         sheet.mergeCells(startRow, 1, startRow + chars.length - 1, 1)
@@ -293,6 +321,10 @@ function addCharSection(
     }
 
     row.getCell(2).value = char.char
+    row.getCell(2).font = baseFont(style, {
+      size: style.char.fontSize,
+      color: { argb: hexToArgb(style.char.color) },
+    })
     row.getCell(3).value = char.pinyin ?? ''
     row.getCell(4).value = char.phoneticOrder ?? ''
     row.getCell(5).value = char.radical ?? ''
@@ -300,14 +332,31 @@ function addCharSection(
     row.getCell(7).value = char.words?.[0] ?? ''
     row.getCell(8).value = char.words?.[1] ?? ''
 
-    for (let col = 2; col <= 8; col++) {
-      row.getCell(col).font = { size: fontSize }
+    for (let col = 3; col <= 6; col++) {
+      row.getCell(col).font = baseFont(style, { size: style.words.fontSize })
+    }
+
+    for (let col = 7; col <= 8; col++) {
+      row.getCell(col).font = baseFont(style, {
+        size: style.words.fontSize,
+        color: { argb: hexToArgb(style.words.color) },
+      })
     }
 
     const sentenceCell = row.getCell(9)
     const sentence = char.sentences?.[0] ?? ''
     if (sentence) {
-      setHighlightedCell(sentenceCell, sentence, char.char, 'FF000000', 'FFFF0000', fontSize)
+      setHighlightedCell(
+        sentenceCell,
+        sentence,
+        char.char,
+        hexToArgb(style.words.color),
+        hexToArgb(style.sentence.highlightColor),
+        style.sentence.fontSize,
+        style.fontFamily
+      )
+    } else {
+      sentenceCell.font = baseFont(style, { size: style.sentence.fontSize })
     }
 
     row.eachCell((cell) => {

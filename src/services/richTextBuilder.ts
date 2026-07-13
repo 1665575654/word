@@ -5,11 +5,13 @@ export function buildHighlightedText(
   targetChar: string,
   defaultColor = 'FF000000',
   highlightColor = 'FFFF0000',
-  fontSize?: number
+  fontSize?: number,
+  fontName?: string
 ): ExcelJS.RichText[] {
   return [...text].map((ch) => ({
     text: ch,
     font: {
+      ...(fontName ? { name: fontName } : {}),
       ...(fontSize !== undefined ? { size: fontSize } : {}),
       color: { argb: ch === targetChar ? highlightColor : defaultColor },
     },
@@ -22,10 +24,11 @@ export function setHighlightedCell(
   targetChar: string,
   defaultColor = 'FF000000',
   highlightColor = 'FFFF0000',
-  fontSize?: number
+  fontSize?: number,
+  fontName?: string
 ) {
   cell.value = {
-    richText: buildHighlightedText(text, targetChar, defaultColor, highlightColor, fontSize),
+    richText: buildHighlightedText(text, targetChar, defaultColor, highlightColor, fontSize, fontName),
   }
 }
 

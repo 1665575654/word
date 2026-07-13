@@ -472,7 +472,7 @@ async function applyExpandedJsonData(parsed: unknown) {
 }
 
 async function applyJsonData(parsed: unknown) {
-  if (!workspace.value) return
+  if (!(await ensureWorkspaceSelected())) return
 
   const type = uploadType.value
   const obj = parsed as Record<string, unknown>
@@ -523,11 +523,19 @@ function handleExportExpandedJson() {
 }
 
 async function handleImportTableJson(file: File) {
-  if (!workspace.value) return false
+  if (!(await ensureWorkspaceSelected())) return false
   const type = uploadType.value
   try {
-    const updates = await importPartialJwDataFromFile(file, workspace.value, type)
-    await workspaceStore.update(updates)
+    const updates = await importPartialJwDataFromFile(file, workspace.value!, type)
+    if (Object.keys(updates).length === 0) {
+      message.warning(`${uploadTypeLabel.value} JSON 中未找到可导入的数据`)
+      return false
+    }
+    const saved = await workspaceStore.update(updates)
+    if (!saved) {
+      message.error('导入成功但保存失败，请刷新页面后重试')
+      return false
+    }
     message.success(`${uploadTypeLabel.value} JSON 导入成功`)
   } catch (e) {
     message.error(e instanceof Error ? e.message : '导入失败')

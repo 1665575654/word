@@ -307,68 +307,82 @@ export function parseJwDataFile(content: string, expectedType?: JwDataType): JwD
   throw new Error('无效的 JSON 文件格式')
 }
 
-export function applyPartialImport(
-  _workspace: Workspace,
-  data: JwDataFile
-): Partial<Workspace> {
-  if (data.workspace) {
-    return data.workspace
-  }
+type ImportDataSource = {
+  catalog?: Workspace['catalog']
+  writingChars?: Workspace['writingChars']
+  readingChars?: Workspace['readingChars']
+  vocabulary?: Workspace['vocabulary']
+  expandConfig?: Workspace['expandConfig']
+}
 
+function hasItems<T>(value: T[] | undefined): value is T[] {
+  return Array.isArray(value) && value.length > 0
+}
+
+/** 按导入类型从数据源提取字段，空数组视为「无数据」以免覆盖已有表 */
+function extractImportUpdates(source: ImportDataSource, type: JwDataType): Partial<Workspace> {
   const updates: Partial<Workspace> = {}
-  const payload = data.payload ?? {}
 
-  switch (data.type) {
+  switch (type) {
     case 'catalog':
-      if (payload.catalog) updates.catalog = payload.catalog
+      if (hasItems(source.catalog?.lessons)) updates.catalog = source.catalog
       break
     case 'writing':
-      if (payload.writingChars) {
-        updates.writingChars = payload.writingChars
-      }
+      if (hasItems(source.writingChars)) updates.writingChars = source.writingChars
       break
     case 'reading':
-      if (payload.readingChars) {
-        updates.readingChars = payload.readingChars
-      }
+      if (hasItems(source.readingChars)) updates.readingChars = source.readingChars
       break
     case 'vocabulary':
-      if (payload.vocabulary) {
-        updates.vocabulary = payload.vocabulary
-      }
+      if (hasItems(source.vocabulary)) updates.vocabulary = source.vocabulary
       break
     case 'tables':
-      if (payload.writingChars) updates.writingChars = payload.writingChars
-      if (payload.readingChars) updates.readingChars = payload.readingChars
-      if (payload.vocabulary) updates.vocabulary = payload.vocabulary
+      if (hasItems(source.writingChars)) updates.writingChars = source.writingChars
+      if (hasItems(source.readingChars)) updates.readingChars = source.readingChars
+      if (hasItems(source.vocabulary)) updates.vocabulary = source.vocabulary
       break
-    case 'merged': {
-      if (payload.catalog) updates.catalog = payload.catalog
-      if (payload.writingChars) updates.writingChars = payload.writingChars
-      if (payload.readingChars) updates.readingChars = payload.readingChars
-      if (payload.vocabulary) updates.vocabulary = payload.vocabulary
+    case 'merged':
+      if (hasItems(source.catalog?.lessons)) updates.catalog = source.catalog
+      if (hasItems(source.writingChars)) updates.writingChars = source.writingChars
+      if (hasItems(source.readingChars)) updates.readingChars = source.readingChars
+      if (hasItems(source.vocabulary)) updates.vocabulary = source.vocabulary
       updates.stage = 'merged'
       break
-    }
     case 'parsed':
-      if (payload.catalog) updates.catalog = payload.catalog
-      if (payload.writingChars) updates.writingChars = payload.writingChars
-      if (payload.readingChars) updates.readingChars = payload.readingChars
-      if (payload.vocabulary) updates.vocabulary = payload.vocabulary
+      if (hasItems(source.catalog?.lessons)) updates.catalog = source.catalog
+      if (hasItems(source.writingChars)) updates.writingChars = source.writingChars
+      if (hasItems(source.readingChars)) updates.readingChars = source.readingChars
+      if (hasItems(source.vocabulary)) updates.vocabulary = source.vocabulary
       break
     case 'expanded':
-      if (payload.catalog) updates.catalog = payload.catalog
-      if (payload.writingChars) updates.writingChars = payload.writingChars
-      if (payload.readingChars) updates.readingChars = payload.readingChars
-      if (payload.vocabulary) updates.vocabulary = payload.vocabulary
-      if (payload.expandConfig) updates.expandConfig = normalizeExpandConfig(payload.expandConfig)
+      if (hasItems(source.catalog?.lessons)) updates.catalog = source.catalog
+      if (hasItems(source.writingChars)) updates.writingChars = source.writingChars
+      if (hasItems(source.readingChars)) updates.readingChars = source.readingChars
+      if (hasItems(source.vocabulary)) updates.vocabulary = source.vocabulary
+      if (source.expandConfig) {
+        updates.expandConfig = normalizeExpandConfig(source.expandConfig)
+      }
       updates.stage = 'expanded'
       break
     default:
-      throw new Error(`不支持的文件类型: ${data.type}`)
+      throw new Error(`不支持的文件类型: ${type}`)
   }
 
   return updates
+}
+
+export function applyPartialImport(
+  _workspace: Workspace,
+  data: JwDataFile,
+  expectedType?: JwDataType
+): Partial<Workspace> {
+  const importType = expectedType ?? data.type
+
+  if (data.workspace) {
+    return extractImportUpdates(data.workspace, importType)
+  }
+
+  return extractImportUpdates(data.payload ?? {}, importType)
 }
 
 export async function importPartialJwDataFromFile(
@@ -378,7 +392,7 @@ export async function importPartialJwDataFromFile(
 ): Promise<Partial<Workspace>> {
   const text = await file.text()
   const data = parseJwDataFile(text, expectedType)
-  return applyPartialImport(workspace, data)
+  return applyPartialImport(workspace, data, expectedType)
 }
 
 export interface CompressImageOptions {
