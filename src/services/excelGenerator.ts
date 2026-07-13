@@ -212,10 +212,41 @@ function baseFont(style: LessonSummaryStyleConfig, extra: Partial<ExcelJS.Font> 
 function solidFill(hex: string): ExcelJS.Fill {
   return { type: 'pattern', pattern: 'solid', fgColor: { argb: hexToArgb(hex) } }
 }
+
+interface LessonSummaryLayout {
+  wordCount: number
+  wordsStartCol: number
+  wordsEndCol: number
+  sentenceCol: number
+  totalCols: number
+}
+
+function getLessonSummaryLayout(style: LessonSummaryStyleConfig): LessonSummaryLayout {
+  const wordCount = style.wordCount
+  const wordsStartCol = 7
+  const wordsEndCol = wordsStartCol + wordCount - 1
+  const sentenceCol = wordsEndCol + 1
+  return {
+    wordCount,
+    wordsStartCol,
+    wordsEndCol,
+    sentenceCol,
+    totalCols: sentenceCol,
+  }
+}
+
 async function generateLessonSummaryTable(workbook: ExcelJS.Workbook, opts: GenerateOptions) {
   const style = getLessonSummaryStyle(opts)
+  const layout = getLessonSummaryLayout(style)
   const sheet = workbook.addWorksheet('综合课表')
-  const headers = ['', '生字', '读音', '音序', '部首', '结构', '组词', '造句']
+  const fixedHeaders: Array<{ col: number; label: string }> = [
+    { col: 1, label: '' },
+    { col: 2, label: '生字' },
+    { col: 3, label: '读音' },
+    { col: 4, label: '音序' },
+    { col: 5, label: '部首' },
+    { col: 6, label: '结构' },
+  ]
   let row = 1
   let hasContent = false
 
@@ -232,7 +263,7 @@ async function generateLessonSummaryTable(workbook: ExcelJS.Workbook, opts: Gene
 
     hasContent = true
 
-    sheet.mergeCells(row, 1, row, 9)
+    sheet.mergeCells(row, 1, row, layout.totalCols)
     const titleCell = sheet.getCell(row, 1)
     titleCell.value = title
     titleCell.font = baseFont(style, {
@@ -245,23 +276,34 @@ async function generateLessonSummaryTable(workbook: ExcelJS.Workbook, opts: Gene
     row++
 
     const headerRow = sheet.getRow(row)
-    const headerCols = [1, 2, 3, 4, 5, 6, 7, 9]
-    headerCols.forEach((col, index) => {
+    fixedHeaders.forEach(({ col, label: headerLabel }) => {
       const cell = headerRow.getCell(col)
-      cell.value = headers[index]
+      cell.value = headerLabel
       cell.font = baseFont(style, { bold: true, size: style.words.fontSize })
       cell.alignment = { horizontal: 'center' }
       setCellBorder(cell)
     })
-    sheet.mergeCells(row, 7, row, 8)
+    const wordsHeaderCell = headerRow.getCell(layout.wordsStartCol)
+    wordsHeaderCell.value = '组词'
+    wordsHeaderCell.font = baseFont(style, { bold: true, size: style.words.fontSize })
+    wordsHeaderCell.alignment = { horizontal: 'center' }
+    setCellBorder(wordsHeaderCell)
+    if (layout.wordCount > 1) {
+      sheet.mergeCells(row, layout.wordsStartCol, row, layout.wordsEndCol)
+    }
+    const sentenceHeaderCell = headerRow.getCell(layout.sentenceCol)
+    sentenceHeaderCell.value = '造句'
+    sentenceHeaderCell.font = baseFont(style, { bold: true, size: style.words.fontSize })
+    sentenceHeaderCell.alignment = { horizontal: 'center' }
+    setCellBorder(sentenceHeaderCell)
     row++
 
     if (writingChars.length > 0) {
-      row = addCharSection(sheet, '写字表', writingChars, row, style.fill.writingTable, style)
+      row = addCharSection(sheet, '写字表', writingChars, row, style.fill.writingTable, style, layout)
     }
 
     if (readingChars.length > 0) {
-      row = addCharSection(sheet, '识字表', readingChars, row, style.fill.readingTable, style)
+      row = addCharSection(sheet, '识字表', readingChars, row, style.fill.readingTable, style, layout)
     }
 
     if (vocab.length > 0) {
@@ -269,7 +311,7 @@ async function generateLessonSummaryTable(workbook: ExcelJS.Workbook, opts: Gene
       vocabRow.getCell(1).value = '词语表'
       vocabRow.getCell(1).fill = solidFill(style.fill.vocabTable)
       vocabRow.getCell(1).font = baseFont(style, { size: style.words.fontSize })
-      sheet.mergeCells(row, 2, row, 9)
+      sheet.mergeCells(row, 2, row, layout.totalCols)
       vocabRow.getCell(2).value = vocab.map((v) => v.word).join('  ')
       vocabRow.getCell(2).font = baseFont(style, {
         size: style.words.fontSize,
@@ -293,9 +335,10 @@ async function generateLessonSummaryTable(workbook: ExcelJS.Workbook, opts: Gene
   sheet.getColumn(4).width = 6
   sheet.getColumn(5).width = 8
   sheet.getColumn(6).width = 10
-  sheet.getColumn(7).width = 12
-  sheet.getColumn(8).width = 12
-  sheet.getColumn(9).width = 40
+  for (let col = layout.wordsStartCol; col <= layout.wordsEndCol; col++) {
+    sheet.getColumn(col).width = 12
+  }
+  sheet.getColumn(layout.sentenceCol).width = 40
 }
 
 function addCharSection(
@@ -304,7 +347,8 @@ function addCharSection(
   chars: CharacterItem[],
   startRow: number,
   labelFillHex: string,
-  style: LessonSummaryStyleConfig
+  style: LessonSummaryStyleConfig,
+  layout: LessonSummaryLayout
 ): number {
   for (let i = 0; i < chars.length; i++) {
     const char = chars[i]
@@ -329,21 +373,21 @@ function addCharSection(
     row.getCell(4).value = char.phoneticOrder ?? ''
     row.getCell(5).value = char.radical ?? ''
     row.getCell(6).value = char.structure ?? ''
-    row.getCell(7).value = char.words?.[0] ?? ''
-    row.getCell(8).value = char.words?.[1] ?? ''
 
     for (let col = 3; col <= 6; col++) {
       row.getCell(col).font = baseFont(style, { size: style.words.fontSize })
     }
 
-    for (let col = 7; col <= 8; col++) {
+    for (let w = 0; w < layout.wordCount; w++) {
+      const col = layout.wordsStartCol + w
+      row.getCell(col).value = char.words?.[w] ?? ''
       row.getCell(col).font = baseFont(style, {
         size: style.words.fontSize,
         color: { argb: hexToArgb(style.words.color) },
       })
     }
 
-    const sentenceCell = row.getCell(9)
+    const sentenceCell = row.getCell(layout.sentenceCol)
     const sentence = char.sentences?.[0] ?? ''
     if (sentence) {
       setSentenceHighlightedCell(

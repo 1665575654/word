@@ -160,13 +160,13 @@ export interface CustomTemplate {
 export const DEFAULT_CHAR_EXPAND_CONFIG: CharExpandConfig = {
   enabled: true,
   charFields: ['pinyin', 'phoneticOrder', 'radical', 'structure', 'words', 'sentences'],
-  wordCount: 2,
+  wordCount: 3,
   sentenceCount: 1,
 }
 
 export const DEFAULT_VOCAB_EXPAND_CONFIG: VocabExpandConfig = {
   enabled: true,
-  vocabWordCount: 2,
+  vocabWordCount: 3,
   vocabSentenceCount: 1,
 }
 

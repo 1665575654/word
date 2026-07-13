@@ -83,12 +83,17 @@ defineExpose({ save, reset, reloadFromStore })
         <a-col :span="24">
           <a-typography-text strong>组词</a-typography-text>
         </a-col>
-        <a-col :xs="24" :sm="12">
+        <a-col :xs="24" :sm="8">
+          <a-form-item label="组词列数">
+            <a-input-number v-model:value="form.wordCount" :min="1" :max="5" style="width: 100%" />
+          </a-form-item>
+        </a-col>
+        <a-col :xs="24" :sm="8">
           <a-form-item label="字号">
             <a-input-number v-model:value="form.words.fontSize" :min="8" :max="72" style="width: 100%" />
           </a-form-item>
         </a-col>
-        <a-col :xs="24" :sm="12">
+        <a-col :xs="24" :sm="8">
           <a-form-item label="颜色">
             <ColorPickerField v-model="form.words.color" />
           </a-form-item>

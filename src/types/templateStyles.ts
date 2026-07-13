@@ -2,6 +2,8 @@
 export interface LessonSummaryStyleConfig {
   /** 整表字体 */
   fontFamily: string
+  /** 组词列数（默认 3） */
+  wordCount: number
   lessonTitle: {
     fontSize: number
     bold: boolean
@@ -28,9 +30,12 @@ export interface LessonSummaryStyleConfig {
   }
 }
 
+export const DEFAULT_LESSON_SUMMARY_WORD_COUNT = 3
+
 /** 小二 ≈ 18pt */
 export const DEFAULT_LESSON_SUMMARY_STYLE: LessonSummaryStyleConfig = {
   fontFamily: '华文楷体',
+  wordCount: DEFAULT_LESSON_SUMMARY_WORD_COUNT,
   lessonTitle: {
     fontSize: 18,
     bold: true,
@@ -56,6 +61,13 @@ export const DEFAULT_LESSON_SUMMARY_STYLE: LessonSummaryStyleConfig = {
   },
 }
 
+function normalizeWordCount(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.min(5, Math.max(1, Math.round(value)))
+  }
+  return DEFAULT_LESSON_SUMMARY_WORD_COUNT
+}
+
 export function normalizeLessonSummaryStyle(raw: unknown): LessonSummaryStyleConfig {
   if (!raw || typeof raw !== 'object') {
     return { ...DEFAULT_LESSON_SUMMARY_STYLE, lessonTitle: { ...DEFAULT_LESSON_SUMMARY_STYLE.lessonTitle }, char: { ...DEFAULT_LESSON_SUMMARY_STYLE.char }, words: { ...DEFAULT_LESSON_SUMMARY_STYLE.words }, sentence: { ...DEFAULT_LESSON_SUMMARY_STYLE.sentence }, fill: { ...DEFAULT_LESSON_SUMMARY_STYLE.fill } }
@@ -64,6 +76,7 @@ export function normalizeLessonSummaryStyle(raw: unknown): LessonSummaryStyleCon
   const d = DEFAULT_LESSON_SUMMARY_STYLE
   return {
     fontFamily: typeof r.fontFamily === 'string' ? r.fontFamily : d.fontFamily,
+    wordCount: normalizeWordCount(r.wordCount),
     lessonTitle: { ...d.lessonTitle, ...(r.lessonTitle as object) },
     char: { ...d.char, ...(r.char as object) },
     words: { ...d.words, ...(r.words as object) },
