@@ -1,4 +1,5 @@
 import { useSettingsStore } from '@/stores/settings'
+import { parseLLMJson } from '@/utils/llmJson'
 
 
 
@@ -213,21 +214,7 @@ function isQwenCompatibleBaseUrl(baseUrl: string): boolean {
 
 
 function parseJSONContent<T>(content: string): T {
-
-  try {
-
-    return JSON.parse(content) as T
-
-  } catch {
-
-    const match = content.match(/```(?:json)?\s*([\s\S]*?)```/)
-
-    if (match) return JSON.parse(match[1].trim()) as T
-
-    throw new Error('AI 返回的内容不是有效 JSON')
-
-  }
-
+  return parseLLMJson<T>(content)
 }
 
 
@@ -452,12 +439,13 @@ export async function chatJSON<T>(
         messages: [{ role: 'user', content: prompt }],
         response_format: { type: 'json_object' },
         temperature: 0.3,
-        max_tokens: options?.api === 'expand' ? 8192 : undefined,
+        max_tokens: options?.api === 'expand' ? 3072 : undefined,
       },
       credentials,
       {
         missingKeyMessage,
-        includeQwenOcrParams: options?.api === 'ocr',
+        // 拓展与 OCR 均关闭 Qwen thinking，避免思考占用 max_tokens 导致正文 JSON 被截断
+        includeQwenOcrParams: true,
       }
     )
 
@@ -521,7 +509,7 @@ export async function visionJSON<T>(
 
         temperature: 0.1,
 
-        max_tokens: 4096,
+        max_tokens: 3072,
 
       },
 

@@ -38,7 +38,7 @@ function dataFingerprint(data: CharacterItem[]): string {
   return data
     .map(
       (c) =>
-        `${normalizeLessonNo(c.lessonNo)}-${c.char}-${c.expanded ? 1 : 0}-${c.pinyin ?? ''}-${c.radical ?? ''}-${normalizeStringArray(c.words).join('|')}`
+        `${normalizeLessonNo(c.lessonNo)}-${c.char}-${c.expanded ? 1 : 0}-${c.pinyin ?? ''}-${c.radical ?? ''}-${c.structure ?? ''}-${normalizeStringArray(c.words).join('|')}-${normalizeStringArray(c.sentences).join('|')}`
     )
     .join('\n')
 }
@@ -72,12 +72,20 @@ function onFieldChange() {
   emitUpdate()
 }
 
-function formatArray(val: unknown) {
-  return formatStringArray(val)
+function displayWords(record: CharacterItem): string {
+  const top = normalizeStringArray(record.words)
+  if (top.length > 0) return formatStringArray(top)
+  return formatStringArray(record.readings?.[0]?.words)
 }
 
-function parseArray(text: string): string[] {
-  return parseStringArray(text)
+function displaySentences(record: CharacterItem): string {
+  const top = normalizeStringArray(record.sentences)
+  if (top.length > 0) return formatStringArray(top)
+  return formatStringArray(record.readings?.[0]?.sentences)
+}
+
+function displayPinyin(record: CharacterItem): string {
+  return record.pinyin?.trim() || record.readings?.[0]?.pinyin?.trim() || ''
 }
 
 const columns = computed(() => {
@@ -125,7 +133,10 @@ const columns = computed(() => {
           <a-input v-model:value="record.char" :maxlength="1" style="width: 60px" @change="onFieldChange" />
         </template>
         <template v-else-if="column.dataIndex === 'pinyin'">
-          <a-input v-model:value="record.pinyin" @change="onFieldChange" />
+          <a-input
+            :value="displayPinyin(record)"
+            @change="(e: Event) => { record.pinyin = (e.target as HTMLInputElement).value; onFieldChange() }"
+          />
         </template>
         <template v-else-if="column.dataIndex === 'phoneticOrder'">
           <a-input v-model:value="record.phoneticOrder" @change="onFieldChange" />
@@ -138,14 +149,14 @@ const columns = computed(() => {
         </template>
         <template v-else-if="column.dataIndex === 'words'">
           <a-input
-            :value="formatArray(record.words)"
-            @change="(e: Event) => { record.words = parseArray((e.target as HTMLInputElement).value); onFieldChange() }"
+            :value="displayWords(record)"
+            @change="(e: Event) => { record.words = parseStringArray((e.target as HTMLInputElement).value); onFieldChange() }"
           />
         </template>
         <template v-else-if="column.dataIndex === 'sentences'">
           <a-input
-            :value="formatArray(record.sentences)"
-            @change="(e: Event) => { record.sentences = parseArray((e.target as HTMLInputElement).value); onFieldChange() }"
+            :value="displaySentences(record)"
+            @change="(e: Event) => { record.sentences = parseStringArray((e.target as HTMLInputElement).value); onFieldChange() }"
           />
         </template>
         <template v-else-if="column.key === 'action'">

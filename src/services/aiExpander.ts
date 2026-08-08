@@ -4,7 +4,8 @@ import { normalizeLessonNo } from '@/services/lessonNoUtils'
 import { normalizeStringArray } from '@/utils/stringArray'
 import type { CharacterItem, WordItem, CharExpandConfig, VocabExpandConfig } from '@/types'
 
-export const EXPAND_BATCH_SIZE = 15
+/** 受模型 max_tokens（如百炼上限 3072）约束，批次过大易截断 JSON 导致无法落库展示 */
+export const EXPAND_BATCH_SIZE = 6
 
 export type ExpandProgressHandler = (done: number, total: number) => void
 
@@ -90,7 +91,17 @@ function applyExpandedCharItem(
   fields: string[],
   config: CharExpandConfig
 ): CharacterItem {
-  const py = item.pinyin || pinyin(target.char)
+  // 模型常把组词/造句只写在 readings 里，页面表格只渲染顶层字段，需回退填充
+  const primaryReading = item.readings?.[0]
+  const topWords = normalizeStringArray(item.words)
+  const topSentences = normalizeStringArray(item.sentences)
+  const readingWords = normalizeStringArray(primaryReading?.words)
+  const readingSentences = normalizeStringArray(primaryReading?.sentences)
+  const py =
+    item.pinyin?.trim() ||
+    primaryReading?.pinyin?.trim() ||
+    pinyin(target.char)
+
   return {
     ...target,
     pinyin: fields.includes('pinyin') ? py : target.pinyin,
@@ -98,10 +109,13 @@ function applyExpandedCharItem(
     radical: fields.includes('radical') ? item.radical : target.radical,
     structure: fields.includes('structure') ? item.structure : target.structure,
     words: fields.includes('words')
-      ? normalizeStringArray(item.words).slice(0, config.wordCount)
+      ? (topWords.length > 0 ? topWords : readingWords).slice(0, config.wordCount)
       : normalizeStringArray(target.words),
     sentences: fields.includes('sentences')
-      ? normalizeStringArray(item.sentences).slice(0, config.sentenceCount)
+      ? (topSentences.length > 0 ? topSentences : readingSentences).slice(
+          0,
+          config.sentenceCount
+        )
       : normalizeStringArray(target.sentences),
     readings: item.readings?.map((r) => ({
       ...r,
@@ -145,22 +159,27 @@ export async function expandCharacters(
     const fields = config.charFields.filter((f) => f !== 'phoneticOrder')
     const includeWords = fields.includes('words')
     const wordGroupRule = includeWords ? buildWordGroupRule(config.wordCount) : ''
-    const prompt = `你是${grade}语文教师。为以下生字生成教学资料，严格返回 JSON：
+    const prompt = `你是${grade}语文教师。为以下生字生成教学资料。
+只返回合法 JSON（UTF-8），禁止 markdown 代码块。字段名必须用英文。标点必须用英文（逗号 , 冒号 : 双引号 "），禁止中文逗号、中文冒号、弯引号。
+JSON 结构：
 {
   "items": [{
     "char": "字",
     "pinyin": "带声调拼音",
     "radical": "部首",
-    "structure": "结构（左右/上下/独体/半包围/全包围等）",
-    "words": ["组词${config.wordCount}个${wordGroupRule ? `，${wordGroupRule}` : ''}"],
-    "sentences": ["造句${config.sentenceCount}个，适合${grade}学生，每句10-15字，语句优美"],
-    "readings": [{"pinyin": "读音", "words": ["组词${includeWords ? `，${wordGroupRule}` : ''}"], "sentences": ["造句，每句10-15字，语句优美"]}]
+    "structure": "左右/上下/独体/半包围/全包围等",
+    "words": ["组词"],
+    "sentences": ["造句"],
+    "readings": [{"pinyin": "读音", "words": ["组词"], "sentences": ["造句"]}]
   }]
 }
-生字（items 数组顺序须与下列序号一致，共 ${batch.length} 条，不可遗漏）：
-${charList}
-${includeWords ? `组词规则：${wordGroupRule}。多音字各读音的组词均须遵守此规则。` : ''}
-多音字用 readings 数组分别给出。造句须含目标字，每句10-15字，语句优美流畅。只返回 JSON。`
+要求：
+- items 共 ${batch.length} 条，顺序与下列序号一致，不可遗漏
+- words 每字 ${config.wordCount} 个${wordGroupRule ? `；${wordGroupRule}` : ''}
+- sentences 每字 ${config.sentenceCount} 个，适合${grade}学生，每句10-15字，须含目标字，语句优美
+- 多音字用 readings 分别给出${includeWords ? `；各读音组词均遵守上述组词规则` : ''}
+生字：
+${charList}`
 
     const expanded = await chatJSON<ExpandCharResult>(prompt, undefined, { api: 'expand' })
 
@@ -219,17 +238,22 @@ export async function expandVocabulary(
       .join('\n')
 
     const wordGroupRule = buildWordGroupRule(config.vocabWordCount, '词语')
-    const prompt = `你是${grade}语文教师。为以下词语生成拓展资料，严格返回 JSON：
+    const prompt = `你是${grade}语文教师。为以下词语生成拓展资料。
+只返回合法 JSON（UTF-8），禁止 markdown 代码块。字段名必须用英文。标点必须用英文（逗号 , 冒号 : 双引号 "），禁止中文逗号、中文冒号、弯引号。
+JSON 结构：
 {
   "items": [{
     "word": "词语",
-    "relatedWords": ["拓展组词${config.vocabWordCount}个，${wordGroupRule}"],
-    "sentences": ["造句${config.vocabSentenceCount}个，适合${grade}学生，每句10-15字，语句优美"]
+    "relatedWords": ["拓展组词"],
+    "sentences": ["造句"]
   }]
 }
-词语（items 数组顺序须与下列序号一致，共 ${batch.length} 条，不可遗漏）：
-${wordList}
-拓展组词规则：${wordGroupRule}。造句须含目标词语，每句10-15字，语句优美流畅。只返回 JSON。`
+要求：
+- items 共 ${batch.length} 条，顺序与下列序号一致，不可遗漏
+- relatedWords 每词 ${config.vocabWordCount} 个；${wordGroupRule}
+- sentences 每词 ${config.vocabSentenceCount} 个，适合${grade}学生，每句10-15字，须含目标词语，语句优美
+词语：
+${wordList}`
 
     const expanded = await chatJSON<ExpandVocabResult>(prompt, undefined, { api: 'expand' })
 
