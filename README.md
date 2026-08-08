@@ -23,6 +23,22 @@ npm run dev
 2. 进入「设置」页配置 OpenAI API Key
 3. 新建工作区，按步骤操作
 
+## 部署（GitHub Pages）
+
+源码分支 `main` 只保留源码，**不提交** `dist/` 和 `node_modules/`。
+
+推送到 `main` 后，GitHub Actions（`.github/workflows/deploy.yml`）会自动：
+
+1. `npm ci` 安装依赖
+2. `npm run build` 构建
+3. 将 `dist/` 发布到 `gh-pages` 分支
+
+访问地址：`https://<username>.github.io/word/`（Vite `base` 为 `/word/`）
+
+手动触发：GitHub 仓库 → Actions → Deploy to GitHub Pages → Run workflow
+
+**Pages 设置**：仓库 Settings → Pages → Source 选 `Deploy from a branch`，Branch 选 `gh-pages` / `/ (root)`。
+
 ## 文档
 
 - 设计规格：`docs/superpowers/specs/2026-07-07-chinese-edu-tool-design.md`
