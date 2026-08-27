@@ -13,7 +13,6 @@ import {
   inferSequentialPrintedNo,
   isGardenTitle,
   isValidLessonNo,
-  normalizeGardenTitleWithOrdinal,
   applyContinuationLessonNo,
   normalizeLessonNo,
   normalizeUnitLabel,
@@ -147,7 +146,6 @@ page：该条目右侧页码数字，必须填写；条目须严格按 page 升�
 }
 
 function extractArray<T>(data: unknown, ...keys: string[]): T[] {
-  // 部分模型忽略 {"lessons":[...]} 约定，直接返回顶层数组
   if (Array.isArray(data)) return data as T[]
   if (!data || typeof data !== 'object') return []
   const obj = data as Record<string, unknown>
@@ -522,4 +520,4 @@ export async function parseImage(
   return { words }
 }
 
-export { normalizeGardenTitleWithOrdinal as normalizeGardenTitle }
+

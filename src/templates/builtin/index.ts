@@ -33,4 +33,22 @@ export const BUILTIN_TEMPLATES: BuiltinTemplateConfig[] = [
     dataSource: ['writing', 'reading'],
     options: { wordCount: 2 },
   },
+  {
+    id: 'standalone-list-word',
+    name: '独立表',
+    description: '选择写字表/识字表/词语表之一，按课次输出 Word：课标题不加表名前缀、20 号，字词小二，左对齐无缩进、行间无空行，字词之间空一格',
+    category: '独立表',
+    dataSource: ['writing', 'reading', 'vocabulary'],
+    outputFormat: 'docx',
+    options: {},
+  },
+  {
+    id: 'combined-list-word',
+    name: '三表合并表',
+    description: '选择三表合并，按课次依次输出生字、识字、词语；课标题与内容左对齐无缩进，内容字号小二，导出 Word',
+    category: '三表合并',
+    dataSource: ['combined'],
+    outputFormat: 'docx',
+    options: {},
+  },
 ]

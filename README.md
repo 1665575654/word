@@ -4,9 +4,10 @@
 
 ## 功能
 
-1. **图片解析** — 上传目录/写字表/识字表/词语表图片，OpenAI Vision OCR 识别
-2. **AI 拓展** — 自动生成读音、音序、部首、结构、组词、造句
-3. **Excel 生成** — 内置 3 种模板（组词课课贴、组词造句本、综合课表）+ 自定义模板上传
+1. **上传识别** — 上传目录 / 写字表 / 识字表 / 词语表图片，OpenAI Vision OCR 识别；同页可表格/JSON 编辑，并对三表做 AI 拓展（读音、音序、部首、结构、组词、造句）
+2. **生成文件** — 内置 3 种模板（组词课课贴、组词造句本、综合课表）+ 自定义模板上传
+
+工作区内导航为两步：`上传识别` → `生成文件`。
 
 ## 技术栈
 
@@ -39,7 +40,3 @@ npm run dev
 
 **Pages 设置**：仓库 Settings → Pages → Source 选 `Deploy from a branch`，Branch 选 `gh-pages` / `/ (root)`。
 
-## 文档
-
-- 设计规格：`docs/superpowers/specs/2026-07-07-chinese-edu-tool-design.md`
-- 实现计划：`docs/superpowers/plans/2026-07-07-chinese-edu-tool.md`

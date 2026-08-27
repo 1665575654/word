@@ -1,13 +1,9 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons-vue'
-import type { CharacterItem } from '@/types'
-import { isValidLessonNo, normalizeLessonNo } from '@/services/lessonNoUtils'
-import {
-  formatStringArray,
-  normalizeStringArray,
-  parseStringArray,
-} from '@/utils/stringArray'
+import {computed, ref, watch} from 'vue'
+import {DeleteOutlined, PlusOutlined} from '@ant-design/icons-vue'
+import type {CharacterItem} from '@/types'
+import {isValidLessonNo, normalizeLessonNo} from '@/services/lessonNoUtils'
+import {formatStringArray, normalizeStringArray, parseStringArray,} from '@/utils/stringArray'
 
 const props = defineProps<{
   data: CharacterItem[]
@@ -90,18 +86,17 @@ function displayPinyin(record: CharacterItem): string {
 
 const columns = computed(() => {
   if (props.expanded) {
-    const cols = [
-      ...(props.hideLessonNo ? [] : [{ title: '课次', dataIndex: 'lessonNo', width: 70 }]),
-      { title: '生字', dataIndex: 'char', width: 60 },
-      { title: '读音', dataIndex: 'pinyin', width: 80 },
-      { title: '音序', dataIndex: 'phoneticOrder', width: 60 },
-      { title: '部首', dataIndex: 'radical', width: 60 },
-      { title: '结构', dataIndex: 'structure', width: 70 },
-      { title: '组词', dataIndex: 'words', width: 120 },
-      { title: '造句', dataIndex: 'sentences', width: 160 },
-      { title: '操作', key: 'action', width: 60 },
+    return [
+      ...(props.hideLessonNo ? [] : [{title: '课次', dataIndex: 'lessonNo', width: 70}]),
+      {title: '生字', dataIndex: 'char', width: 60},
+      {title: '读音', dataIndex: 'pinyin', width: 80},
+      {title: '音序', dataIndex: 'phoneticOrder', width: 60},
+      {title: '部首', dataIndex: 'radical', width: 60},
+      {title: '结构', dataIndex: 'structure', width: 70},
+      {title: '组词', dataIndex: 'words', width: 120},
+      {title: '造句', dataIndex: 'sentences', width: 160},
+      {title: '操作', key: 'action', width: 60},
     ]
-    return cols
   }
   return [
     { title: '课次', dataIndex: 'lessonNo', width: 100 },

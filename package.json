@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "ant-design-vue": "^4.2.6",
+    "docx": "^9.7.1",
     "exceljs": "^4.4.0",
     "file-saver": "^2.0.5",
     "idb": "^8.0.2",

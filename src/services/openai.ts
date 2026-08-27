@@ -597,15 +597,10 @@ export async function testOcrConnection(): Promise<string> {
   try {
 
     const data = await requestChatCompletion(
-
       {
-
         model: ocrModel,
-
         messages: [{ role: 'user', content: '回复 OK' }],
-
         max_tokens: 10,
-
       },
 
       credentials,

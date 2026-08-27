@@ -222,14 +222,20 @@ function mergeFieldChars(field: 'writingChars' | 'readingChars', partial: Charac
   const ws = workspaceStore.current
   if (!ws) return
   const merged = mergeCharPartial(ws[field], partial)
-  return workspaceStore.update({ [field]: merged })
+  return workspaceStore.update({
+    [field]: merged,
+    ...(ws.stage !== 'expanded' ? { stage: 'expanded' as const } : {}),
+  })
 }
 
 function mergeFieldVocab(partial: WordItem[]) {
   const ws = workspaceStore.current
   if (!ws) return
   const merged = mergeVocabPartial(ws.vocabulary, partial)
-  return workspaceStore.update({ vocabulary: merged })
+  return workspaceStore.update({
+    vocabulary: merged,
+    ...(ws.stage !== 'expanded' ? { stage: 'expanded' as const } : {}),
+  })
 }
 
 async function runExpand() {

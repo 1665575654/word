@@ -90,7 +90,12 @@ async function handleDelete(id: string) {
             <a-typography-title :level="5">{{ tpl.name }}</a-typography-title>
             <p style="color: #666">{{ tpl.description }}</p>
             <div class="tpl-card-footer">
-              <a-tag>{{ tpl.category }}</a-tag>
+              <a-space size="small">
+                <a-tag>{{ tpl.category }}</a-tag>
+                <a-tag :color="tpl.outputFormat === 'docx' ? 'blue' : 'default'">
+                  {{ tpl.outputFormat === 'docx' ? 'Word' : 'Excel' }}
+                </a-tag>
+              </a-space>
               <a-button
                 v-if="tpl.id === 'lesson-summary-table'"
                 type="link"

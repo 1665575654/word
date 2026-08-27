@@ -27,7 +27,7 @@ const router = createRouter({
         {
           path: 'import',
           name: 'import',
-          component: () => import('@/views/step1/ImportView.vue'),
+          component: () => import('@/views/workspace/ImportView.vue'),
         },
         {
           path: 'catalog',
@@ -54,7 +54,7 @@ const router = createRouter({
         {
           path: 'export',
           name: 'export',
-          component: () => import('@/views/step5/ExportView.vue'),
+          component: () => import('@/views/workspace/ExportView.vue'),
         },
         // 兼容旧链接
         {

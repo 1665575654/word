@@ -139,12 +139,15 @@ export type ImageType = 'catalog' | 'writing' | 'reading' | 'vocabulary'
 
 export type DataSourceType = 'writing' | 'reading' | 'vocabulary' | 'combined'
 
+export type ExportOutputFormat = 'xlsx' | 'docx'
+
 export interface BuiltinTemplateConfig {
   id: string
   name: string
   description: string
   category: string
   dataSource: DataSourceType[]
+  outputFormat?: ExportOutputFormat
   options: Record<string, unknown>
 }
 

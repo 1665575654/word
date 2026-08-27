@@ -37,7 +37,7 @@ async function handleCreate() {
       semester: selectedSemester.value,
     })
     createModalOpen.value = false
-    router.push(`/workspace/${ws.id}/import`)
+    await router.push(`/workspace/${ws.id}/import`)
   } finally {
     creating.value = false
   }
