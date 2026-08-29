@@ -1,11 +1,11 @@
 import ExcelJS from 'exceljs'
-import type { Workspace, CharacterItem, WordItem, DataSourceType } from '@/types'
-import type { LessonSummaryStyleConfig } from '@/types/templateStyles'
-import { DEFAULT_LESSON_SUMMARY_STYLE } from '@/types/templateStyles'
-import { hexToArgb } from '@/utils/colorUtils'
-import { isLessonSlotChar, isLessonSlotWord } from '@/services/dataMerger'
-import { formatLessonOrdinalLabel, normalizeLessonNo } from '@/services/lessonNoUtils'
-import { setHighlightedCell, setSentenceHighlightedCell, setCellBorder } from '@/services/richTextBuilder'
+import type {CharacterItem, DataSourceType, WordItem, Workspace} from '@/types'
+import type {LessonSummaryStyleConfig} from '@/types/templateStyles'
+import {DEFAULT_LESSON_SUMMARY_STYLE} from '@/types/templateStyles'
+import {hexToArgb} from '@/utils/colorUtils'
+import {isLessonSlotChar, isLessonSlotWord} from '@/services/dataMerger'
+import {formatLessonOrdinalLabel, normalizeLessonNo} from '@/services/lessonNoUtils'
+import {setCellBorder, setHighlightedCell, setSentenceHighlightedCell} from '@/services/richTextBuilder'
 
 interface GenerateOptions {
   templateId: string
@@ -185,8 +185,7 @@ async function generateCharWordSentenceBook(workbook: ExcelJS.Workbook, opts: Ge
       wordsCell.alignment = { vertical: 'middle' }
 
       const sentenceCell = sheet.getCell(row, 3)
-      const sentence = char.sentences?.[0] ?? ''
-      sentenceCell.value = sentence
+      sentenceCell.value = char.sentences?.[0] ?? ''
       sentenceCell.font = { color: { argb: 'FF008000' } }
       sentenceCell.border = { bottom: { style: 'thin' } }
       sentenceCell.alignment = { vertical: 'middle' }
