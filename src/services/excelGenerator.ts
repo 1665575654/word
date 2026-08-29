@@ -17,7 +17,7 @@ interface GenerateOptions {
 
 export async function generateBuiltinExcel(opts: GenerateOptions): Promise<ArrayBuffer> {
   const workbook = new ExcelJS.Workbook()
-
+console.log(opts.templateId)
   switch (opts.templateId) {
     case 'char-word-sticker':
       await generateCharWordSticker(workbook, opts)
@@ -30,6 +30,9 @@ export async function generateBuiltinExcel(opts: GenerateOptions): Promise<Array
       break
     case 'char-expand-grid':
       await generateCharExpandGrid(workbook, opts)
+      break
+    case 'char-pinyin-word-grid':
+      await generateCharPinyinWordGrid(workbook, opts)
       break
     default:
       throw new Error(`未知模板: ${opts.templateId}`)
@@ -564,5 +567,140 @@ function writeExpandGridRow2(
     const cell = sheet.getCell(row, col)
     cell.alignment = { horizontal: 'center', vertical: 'middle' }
     setCellBorder(cell)
+  }
+}
+
+const PINYIN_WORD_KAITI = '华文楷体'
+const PINYIN_WORD_FONT_SIZE = 12
+const PINYIN_WORD_COLS_PER_CHAR = 2
+/** 每行最多排几个生字（每个生字占两列） */
+const PINYIN_WORD_CHARS_PER_ROW = 5
+
+function getPinyinWordGridTitle(opts: GenerateOptions): string {
+  if (opts.workspace.meta.title) return opts.workspace.meta.title
+  return opts.dataSource === 'reading' ? '识字表' : '生字表'
+}
+
+async function generateCharPinyinWordGrid(workbook: ExcelJS.Workbook, opts: GenerateOptions) {
+  console.log(44)
+  const lessonsWithChars = opts.lessonNos
+    .map((lessonNo) => ({
+      lessonNo,
+      chars: getChars(opts.workspace, opts.dataSource, lessonNo),
+    }))
+    .filter(({ chars }) => chars.length > 0)
+
+  if (lessonsWithChars.length === 0) {
+    throw new Error('所选课次均无生字，无法生成生字表/识字表')
+  }
+
+  const maxCharsInRow = Math.min(
+    PINYIN_WORD_CHARS_PER_ROW,
+    Math.max(...lessonsWithChars.map(({ chars }) => chars.length))
+  )
+  const maxCols = maxCharsInRow * PINYIN_WORD_COLS_PER_CHAR
+  const sheet = workbook.addWorksheet(opts.dataSource === 'reading' ? '识字表' : '生字表')
+  sheet.properties.defaultRowHeight = 22
+
+  let row = 1
+  sheet.mergeCells(row, 1, row, maxCols)
+  const titleCell = sheet.getCell(row, 1)
+  titleCell.value = getPinyinWordGridTitle(opts)
+  titleCell.font = { name: PINYIN_WORD_KAITI, size: 16, bold: true }
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
+  row += 2
+
+  for (const { lessonNo, chars } of lessonsWithChars) {
+    if (maxCols > 1) {
+      sheet.mergeCells(row, 1, row, maxCols)
+    }
+    const headerCell = sheet.getCell(row, 1)
+    headerCell.value = getLessonTitle(opts.workspace, lessonNo)
+    headerCell.font = { name: PINYIN_WORD_KAITI, size: 14, bold: true }
+    headerCell.alignment = { horizontal: 'left', vertical: 'middle' }
+    row++
+
+    const bands = chunkLessons(chars, PINYIN_WORD_CHARS_PER_ROW)
+    for (const band of bands) {
+      band.forEach((char, idx) => {
+        writePinyinWordCharBlock(sheet, row, idx * PINYIN_WORD_COLS_PER_CHAR + 1, char)
+      })
+      row += 2
+    }
+    row++
+  }
+
+  for (let c = 1; c <= maxCols; c++) {
+    sheet.getColumn(c).width = 12
+  }
+}
+
+function writePinyinWordCharBlock(
+  sheet: ExcelJS.Worksheet,
+  startRow: number,
+  startCol: number,
+  char: CharacterItem
+) {
+  const words = (char.words ?? []).map((w) => w.trim()).filter((w) => w.length > 0)
+  const word1 = words[0] ?? ''
+  const word2 = words[1] ?? ''
+  const word3 = words[2] ?? ''
+
+  const pinyinCell = sheet.getCell(startRow, startCol)
+  pinyinCell.value = char.pinyin ?? ''
+  pinyinCell.font = { name: PINYIN_WORD_KAITI, size: PINYIN_WORD_FONT_SIZE }
+
+  const word1Cell = sheet.getCell(startRow, startCol + 1)
+  if (word1) {
+    setHighlightedCell(
+      word1Cell,
+      word1,
+      char.char,
+      'FF000000',
+      'FFFF0000',
+      PINYIN_WORD_FONT_SIZE,
+      PINYIN_WORD_KAITI
+    )
+  }
+
+  const word2Cell = sheet.getCell(startRow + 1, startCol)
+  if (word2) {
+    setHighlightedCell(
+      word2Cell,
+      word2,
+      char.char,
+      'FF000000',
+      'FFFF0000',
+      PINYIN_WORD_FONT_SIZE,
+      PINYIN_WORD_KAITI
+    )
+  }
+
+  const word3Cell = sheet.getCell(startRow + 1, startCol + 1)
+  if (word3) {
+    setHighlightedCell(
+      word3Cell,
+      word3,
+      char.char,
+      'FF000000',
+      'FFFF0000',
+      PINYIN_WORD_FONT_SIZE,
+      PINYIN_WORD_KAITI
+    )
+  }
+
+  for (let r = startRow; r <= startRow + 1; r++) {
+    for (let c = startCol; c <= startCol + 1; c++) {
+      const cell = sheet.getCell(r, c)
+      const isRichText =
+        cell.value !== null &&
+        typeof cell.value === 'object' &&
+        'richText' in cell.value
+      if (!isRichText) {
+        cell.font = { name: PINYIN_WORD_KAITI, size: PINYIN_WORD_FONT_SIZE }
+      }
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+      setCellBorder(cell)
+    }
   }
 }
