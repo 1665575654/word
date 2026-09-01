@@ -4,10 +4,10 @@ export const BUILTIN_TEMPLATES: BuiltinTemplateConfig[] = [
   {
     id: 'char-word-sticker',
     name: '组词课课贴',
-    description: '按课次排列，每课生字一行排开，两个组词各占一行独立单元格，无生字课次不输出，目标字红色高亮，字号12',
+    description: '按课次排列，每课全部生字不换行，每个生字占 2×2 格：左上第一个词语，右上第二个词语，第二行合并为第三个词语；不足留空，华文楷体，目标字红色高亮',
     category: '识字表/写字表',
     dataSource: ['writing', 'reading'],
-    options: { wordCount: 2 },
+    options: { wordCount: 3 },
   },
   {
     id: 'char-pinyin-word-grid',

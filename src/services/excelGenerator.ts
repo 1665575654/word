@@ -17,7 +17,6 @@ interface GenerateOptions {
 
 export async function generateBuiltinExcel(opts: GenerateOptions): Promise<ArrayBuffer> {
   const workbook = new ExcelJS.Workbook()
-console.log(opts.templateId)
   switch (opts.templateId) {
     case 'char-word-sticker':
       await generateCharWordSticker(workbook, opts)
@@ -86,7 +85,11 @@ function getLessonTitle(workspace: Workspace, lessonNo: string): string {
   return lesson ? `${label} ${lesson.title}` : label
 }
 
+const STICKER_FONT = '华文楷体'
 const STICKER_FONT_SIZE = 12
+const STICKER_COLS_PER_CHAR = 2
+/** 空值保留缺少词语时的固定位置，避免空格文本被渲染为异常字符。 */
+const STICKER_PLACEHOLDER = null
 
 async function generateCharWordSticker(workbook: ExcelJS.Workbook, opts: GenerateOptions) {
   const lessonsWithChars = opts.lessonNos
@@ -100,38 +103,31 @@ async function generateCharWordSticker(workbook: ExcelJS.Workbook, opts: Generat
     throw new Error('所选课次均无生字，无法生成课贴')
   }
 
-  const maxCols = Math.max(...lessonsWithChars.map(({ chars }) => chars.length))
+  const maxCharsInRow = Math.max(...lessonsWithChars.map(({ chars }) => chars.length))
+  const maxCols = maxCharsInRow * STICKER_COLS_PER_CHAR
   const sheet = workbook.addWorksheet('组词课课贴')
+  sheet.properties.defaultRowHeight = 22
   let row = 1
 
   sheet.mergeCells(row, 1, row, maxCols)
   const titleCell = sheet.getCell(row, 1)
   titleCell.value = opts.workspace.meta.title || '组词课课贴'
-  titleCell.font = { size: 16, bold: true }
-  titleCell.alignment = { horizontal: 'center' }
+  titleCell.font = { name: STICKER_FONT, size: 16, bold: true }
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
   row += 2
 
   for (const { lessonNo, chars } of lessonsWithChars) {
-    sheet.mergeCells(row, 1, row, chars.length)
+    sheet.mergeCells(row, 1, row, maxCols)
     const headerCell = sheet.getCell(row, 1)
     headerCell.value = getLessonTitle(opts.workspace, lessonNo)
-    headerCell.font = { size: 14, bold: true, color: { argb: 'FF0000FF' } }
+    headerCell.font = { name: STICKER_FONT, size: 14, bold: true, color: { argb: 'FF0000FF' } }
+    headerCell.alignment = { horizontal: 'left', vertical: 'middle' }
     row++
 
-    for (let wordIdx = 0; wordIdx < 2; wordIdx++) {
-      for (let col = 0; col < chars.length; col++) {
-        const char = chars[col]
-        const words = char.words ?? []
-        const text = wordIdx === 0 ? (words[0] ?? char.char) : (words[1] ?? '')
-        const cell = sheet.getCell(row, col + 1)
-        if (text) {
-          cell.value = { richText: buildStickerRichLine(text, char.char) }
-        }
-        setCellBorder(cell)
-        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
-      }
-      row++
-    }
+    chars.forEach((char, idx) => {
+      writeStickerWordBlock(sheet, row, idx * STICKER_COLS_PER_CHAR + 1, char)
+    })
+    row += 2
     row++
   }
 
@@ -144,10 +140,46 @@ function buildStickerRichLine(text: string, targetChar: string): ExcelJS.RichTex
   return [...text].map((ch) => ({
     text: ch,
     font: {
+      name: STICKER_FONT,
       size: STICKER_FONT_SIZE,
       color: { argb: ch === targetChar ? 'FFFF0000' : 'FF000000' },
     },
   }))
+}
+
+function writeStickerWordBlock(
+  sheet: ExcelJS.Worksheet,
+  startRow: number,
+  startCol: number,
+  char: CharacterItem
+) {
+  // Do not filter empty entries: an empty first or second word must keep its slot.
+  const words = (char.words ?? []).map((word) => String(word ?? '').trim())
+  const word1 = words[0] ?? ''
+  const word2 = words[1] ?? ''
+  const word3 = words[2] ?? ''
+
+  setStickerWordCell(sheet.getCell(startRow, startCol), word1, char.char)
+  setStickerWordCell(sheet.getCell(startRow, startCol + 1), word2, char.char)
+
+  sheet.mergeCells(startRow + 1, startCol, startRow + 1, startCol + 1)
+  setStickerWordCell(sheet.getCell(startRow + 1, startCol), word3, char.char)
+  setCellBorder(sheet.getCell(startRow + 1, startCol + 1))
+}
+
+function setStickerWordCell(
+  cell: ExcelJS.Cell,
+  text: string,
+  targetChar: string
+) {
+  cell.value = text
+    ? { richText: buildStickerRichLine(text, targetChar) }
+    : STICKER_PLACEHOLDER
+  if (!text) {
+    cell.font = { name: STICKER_FONT, size: STICKER_FONT_SIZE }
+  }
+  cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+  setCellBorder(cell)
 }
 
 async function generateCharWordSentenceBook(workbook: ExcelJS.Workbook, opts: GenerateOptions) {
