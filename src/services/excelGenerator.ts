@@ -21,6 +21,9 @@ export async function generateBuiltinExcel(opts: GenerateOptions): Promise<Array
     case 'char-word-sticker':
       await generateCharWordSticker(workbook, opts)
       break
+    case 'char-two-word-sticker':
+      await generateTwoWordSticker(workbook, opts)
+      break
     case 'char-word-sentence-book':
       await generateCharWordSentenceBook(workbook, opts)
       break
@@ -180,6 +183,70 @@ function setStickerWordCell(
   }
   cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
   setCellBorder(cell)
+}
+
+const TWO_WORD_STICKER_FONT_SIZE = 12
+
+async function generateTwoWordSticker(workbook: ExcelJS.Workbook, opts: GenerateOptions) {
+  const lessonsWithChars = opts.lessonNos
+    .map((lessonNo) => ({
+      lessonNo,
+      chars: getChars(opts.workspace, opts.dataSource, lessonNo),
+    }))
+    .filter(({ chars }) => chars.length > 0)
+
+  if (lessonsWithChars.length === 0) {
+    throw new Error('所选课次均无生字，无法生成两个词课贴')
+  }
+
+  const maxCols = Math.max(...lessonsWithChars.map(({ chars }) => chars.length))
+  const sheet = workbook.addWorksheet('两个词课课贴')
+  let row = 1
+
+  sheet.mergeCells(row, 1, row, maxCols)
+  const titleCell = sheet.getCell(row, 1)
+  titleCell.value = opts.workspace.meta.title || '两个词课课贴'
+  titleCell.font = { size: 16, bold: true }
+  titleCell.alignment = { horizontal: 'center' }
+  row += 2
+
+  for (const { lessonNo, chars } of lessonsWithChars) {
+    sheet.mergeCells(row, 1, row, chars.length)
+    const headerCell = sheet.getCell(row, 1)
+    headerCell.value = getLessonTitle(opts.workspace, lessonNo)
+    headerCell.font = { size: 14, bold: true, color: { argb: 'FF0000FF' } }
+    row++
+
+    for (let wordIdx = 0; wordIdx < 2; wordIdx++) {
+      for (let col = 0; col < chars.length; col++) {
+        const char = chars[col]
+        const words = char.words ?? []
+        const text = wordIdx === 0 ? (words[0] ?? char.char) : (words[1] ?? '')
+        const cell = sheet.getCell(row, col + 1)
+        if (text) {
+          cell.value = { richText: buildTwoWordStickerRichLine(text, char.char) }
+        }
+        setCellBorder(cell)
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+      }
+      row++
+    }
+    row++
+  }
+
+  for (let c = 1; c <= maxCols; c++) {
+    sheet.getColumn(c).width = 12
+  }
+}
+
+function buildTwoWordStickerRichLine(text: string, targetChar: string): ExcelJS.RichText[] {
+  return [...text].map((ch) => ({
+    text: ch,
+    font: {
+      size: TWO_WORD_STICKER_FONT_SIZE,
+      color: { argb: ch === targetChar ? 'FFFF0000' : 'FF000000' },
+    },
+  }))
 }
 
 async function generateCharWordSentenceBook(workbook: ExcelJS.Workbook, opts: GenerateOptions) {
