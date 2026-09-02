@@ -59,14 +59,14 @@ function getPhoneticOrder(py: string): string {
   return first.toUpperCase()
 }
 
-/** 组词/拓展词组规则：最后一项须为含目标字的四字成语，无则四字词语 */
+/** 组词/拓展词组规则：最后一项须为含目标字的四字词语，没有则留空 */
 function buildWordGroupRule(wordCount: number, targetLabel: '生字' | '词语' = '生字'): string {
   if (wordCount <= 0) return ''
   const target = `该${targetLabel}`
   if (wordCount === 1) {
-    return `共1个，须为包含${target}的四字成语；若无合适成语则组包含${target}的四字词语`
+    return `共1个，须为包含${target}的真实、常用四字词语（优先成语）；若无合适四字词语，返回空字符串，不得改用其他长度或生造词语`
   }
-  return `共${wordCount}个：前${wordCount - 1}个为普通词语（2-3字为宜）；最后1个须为包含${target}的四字成语，若无合适成语则组包含${target}的四字词语`
+  return `共${wordCount}个：前${wordCount - 1}个须为包含${target}的两字词语；最后1个须为包含${target}的真实、常用四字词语（优先成语），若无合适四字词语则返回空字符串，不得改用其他长度或生造词语`
 }
 
 interface ExpandCharResult {

@@ -6,6 +6,7 @@ import {hexToArgb} from '@/utils/colorUtils'
 import {isLessonSlotChar, isLessonSlotWord} from '@/services/dataMerger'
 import {formatLessonOrdinalLabel, normalizeLessonNo} from '@/services/lessonNoUtils'
 import {setCellBorder, setHighlightedCell, setSentenceHighlightedCell} from '@/services/richTextBuilder'
+import {selectThreeWordStickerWords} from '@/services/stickerWordSelection'
 
 interface GenerateOptions {
   templateId: string
@@ -156,11 +157,7 @@ function writeStickerWordBlock(
   startCol: number,
   char: CharacterItem
 ) {
-  // Do not filter empty entries: an empty first or second word must keep its slot.
-  const words = (char.words ?? []).map((word) => String(word ?? '').trim())
-  const word1 = words[0] ?? ''
-  const word2 = words[1] ?? ''
-  const word3 = words[2] ?? ''
+  const [word1, word2, word3] = selectThreeWordStickerWords(char.words)
 
   setStickerWordCell(sheet.getCell(startRow, startCol), word1, char.char)
   setStickerWordCell(sheet.getCell(startRow, startCol + 1), word2, char.char)
