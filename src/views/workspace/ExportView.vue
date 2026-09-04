@@ -101,7 +101,10 @@ async function handleGenerate() {
       buffer = await generateBuiltinWord(generateOpts)
       mime = WORD_MIME
       ext = 'docx'
-      suffix = DATA_SOURCE_FILE_SUFFIX[dataSource.value]
+      suffix =
+        selectedTemplate.value === 'char-two-word-sticker-word'
+          ? (selectedTpl.value?.name ?? '两个组词·课课贴')
+          : DATA_SOURCE_FILE_SUFFIX[dataSource.value]
     } else {
       buffer = await generateBuiltinExcel(generateOpts)
       mime = EXCEL_MIME

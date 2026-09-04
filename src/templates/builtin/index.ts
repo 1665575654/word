@@ -18,6 +18,15 @@ export const BUILTIN_TEMPLATES: BuiltinTemplateConfig[] = [
     options: { wordCount: 2 },
   },
   {
+    id: 'char-two-word-sticker-word',
+    name: '两个组词·课课贴（Word）',
+    description: '与两个组词·课课贴样式一致：按课次横向排列，每字两行组词；目标字红色高亮，字号12，导出 Word',
+    category: '识字表/写字表',
+    dataSource: ['writing', 'reading'],
+    outputFormat: 'docx',
+    options: { wordCount: 2 },
+  },
+  {
     id: 'char-pinyin-word-grid',
     name: '带·拼音·课课贴',
     description: '按课次输出。每个生字占 2×2 格：左上拼音，右上/左下/右下三个组词（不足留空）；华文楷体，组词中的生字标红',
